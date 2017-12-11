@@ -35,14 +35,16 @@
     info            db 'Arminas Petraitis, 2 kursas, INF4 grupe', 0Dh, 0Ah, 'Programa disasembliuoja failus, pateiktus komandineje eiluteje paleidziant programa', 0Dh, 0Ah, 'Naudojimas: disasm input.com output.asm', 0Dh, 0Ah, '$'
     readFile        db 12 dup (0)
     writeFile       db 12 dup (0)
-    inBuffer        db 20 dup (?)
+    inBuffer        db 20 dup (?),0
     outBuffer       db 100 dup (?)
     readHandle      dw ?
     writeHandle     dw ?
     symbol          db ?
-    temp            db 100
-    position        dw 0A2B4h
-    .mov            db 'mov'
+    temp            dw ?
+    position        dw 100h
+    
+include opcodes.asm
+
 .code
 
 Sje MACRO location
@@ -53,12 +55,6 @@ LOCAL @@exit
 ENDM
 
 OutFill MACRO mcode, acode
-LOCAL @@exit, @@exit1, @@start
-    jne @@exit1
-    jmp @@start
-@@exit1: 
-    jmp @@exit
-@@start:
     mov ax, @data
     mov es, ax
     Pos position, outBuffer
@@ -66,9 +62,11 @@ LOCAL @@exit, @@exit1, @@start
     Move 68h, outBuffer+4
     Move 3Ah, outBuffer+5
     Move 20h, outBuffer+6 
-    Move acode, outBuffer+24
+    MoveStrToBuf acode, outBuffer+24
+    Move 0Dh, outBuffer+98
+    Move 0Ah, outBuffer+99
     inc position
-@@exit:
+    jmp save
 ENDM
 
 Sjc MACRO location
@@ -82,6 +80,23 @@ Move MACRO a,b
     push ax
     mov ah, a
     mov b, ah
+    pop ax
+ENDM
+
+MoveStrToBuf MACRO a,b 
+LOCAL @@start,@@exit
+    push ax
+    push si
+    mov si, 00h
+    @@start:
+    mov ah, a[si]
+    cmp ah, 00h
+    je @@exit
+    mov b[si], ah
+    inc si
+    jmp @@start
+    @@exit:
+    pop si
     pop ax
 ENDM
 
@@ -147,28 +162,26 @@ LOCAL @@start,@@end,@@exit,@@loop,@@exit2
 @@exit2:
 ENDM
 
-
-Clr1 MACRO buffer
-Move 20h, buffer
-Move 20h, buffer+1
-Move 20h, buffer+2
-Move 20h, buffer+3
-Move 20h, buffer+4
-ENDM
-
-Clr2 MACRO buffer
-Clr1 buffer
-Clr1 buffer+5
-Clr1 buffer+10
-Clr1 buffer+15
-Clr1 buffer+20
-ENDM
-
 Clr MACRO buffer 
-Clr2 buffer
-Clr2 buffer+25
-Clr2 buffer+50
-Clr2 buffer+75
+LOCAL @@start, @@exit
+    push Si
+    mov Si, 00h
+    @@start:
+    cmp si,100
+    je @@exit
+    mov buffer[si],20h
+    inc si
+    jmp @@start
+    @@exit:
+    pop Si
+ENDM
+
+Compare MACRO b, loc
+LOCAL @@exit
+cmp byte ptr ds:[inBuffer+si], b
+jne @@exit
+jmp loc
+@@exit:
 ENDM
 
 start:
@@ -210,16 +223,26 @@ start:
     Sjc print_info
 	mov	writeHandle, ax
     
+    reread:
     mov	bx, readHandle
 	mov	dx, offset inBuffer       ; address of buffer in dx
 	mov	cx, 20         		; kiek baitu nuskaitysim
 	mov	ah, 3fh         	; function 3Fh - read from file
 	int	21h
+    mov temp, ax
+    mov si, 0
+    dec si
+    cmp temp, 00h
+    Sje finish
+    startCycle:
+    inc si
+    cmp si,temp
+    Sje reread
     Clr outBuffer
     call check_byte
     
     
-    jmp save
+    jmp startCycle
     
 print_info:
     mov ax, @data
@@ -241,19 +264,187 @@ space_check ENDP
 
 check_byte PROC near
     check_begin:
-    cmp byte ptr ds:[inBuffer], 0B4h
-    OutFill 0B4h, .mov
+    Compare 06h, PushES
+    Compare 0Eh, PushCS
+    Compare 16h, PushSS
+    Compare 1Eh, PushDS
+    Compare 07h, PopES
+    Compare 0Fh, PopCS
+    Compare 17h, PopSS
+    Compare 1Fh, PopDS
+    Compare 07h, PopES
+    Compare 0Fh, PopCS
+    Compare 17h, PopSS
+    Compare 1Fh, PopDS
+    Compare 40h, IncAX
+    Compare 44h, IncSP
+    Compare 43h, IncBX
+    Compare 47h, IncDI
+    Compare 41h, IncCX
+    Compare 45h, IncBP
+    Compare 42h, IncDX
+    Compare 46h, IncSI
+    Compare 48h, DecAX
+    Compare 4Ch, DecSP
+    Compare 4Bh, DecBX
+    Compare 4Fh, DecDI
+    Compare 49h, DecCX
+    Compare 4Dh, DecBP
+    Compare 4Ah, DecDX
+    Compare 4Eh, DecSI
+    Compare 50h, PushAX
+    Compare 54h, PushSP
+    Compare 53h, PushBX
+    Compare 57h, PushDI
+    Compare 51h, PushCX
+    Compare 55h, PushBP
+    Compare 52h, PushDX
+    Compare 56h, PushSI
+    Compare 58h, PopAX
+    Compare 5Ch, PopSP
+    Compare 5Bh, PopBX
+    Compare 5Fh, PopDI
+    Compare 59h, PopCX
+    Compare 5Dh, PopBP
+    Compare 5Ah, PopDX
+    Compare 5Eh, PopSI
     
-   ; cmp byte ptr ds:[inBuffer], 0B4h
-    ;OutFill 0B4h, .mov
+    Compare 0B4h, MovAh
+    
+    OutFill ds:[inBuffer+si], .Unknown
     ret
 check_byte ENDP
+
+PushES:
+OutFill 06h, .PushES
+
+PushCS:
+OutFill 0Eh, .PushCS
+
+PushSS:
+OutFill 16h, .PushSS
+
+PushDS:
+OutFill 1Eh, .PushDS
+
+PopES:
+OutFill 07h, .PopES
+
+PopCS:
+OutFill 0Fh, .PopCS
+
+PopSS:
+OutFill 17h, .PopSS
+
+PopDS:
+OutFill 1Fh, .PopDS
+
+IncAX:
+OutFill 40h, .IncAX
+
+IncSP:
+OutFill 44h, .IncSP
+
+IncBX:
+OutFill 43h, .IncBX
+
+IncDI:
+OutFill 47h, .IncDI
+
+IncCX:
+OutFill 41h, .IncCX
+
+IncBP:
+OutFill 45h, .IncBP
+
+IncDX:
+OutFill 42h, .IncDX
+
+IncSI:
+OutFill 46h, .IncSI
+
+DecAX:
+OutFill 48h, .DecAX
+
+DecSP:
+OutFill 4Ch, .DecSP
+
+DecBX:
+OutFill 4Bh, .DecBX
+
+DecDI:
+OutFill 4Fh, .DecDI
+
+DecCX:
+OutFill 49h, .DecCX
+
+DecBP:
+OutFill 4Dh, .DecBP
+
+DecDX:
+OutFill 4Ah, .DecDX
+
+DecSI:
+OutFill 4Eh, .DecSI
+
+PushAX:
+OutFill 50h, .PushAX
+
+PushSP:
+OutFill 54h, .PushSP
+
+PushBX:
+OutFill 53h, .PushBX
+
+PushDI:
+OutFill 57h, .PushDI
+
+PushCX:
+OutFill 51h, .PushCX
+
+PushBP:
+OutFill 55h, .PushBP
+
+PushDX:
+OutFill 52h, .PushDX
+
+PushSI:
+OutFill 56h, .PushSI
+
+PopAX:
+OutFill 58h, .PopAX
+
+PopSP:
+OutFill 5Ch, .PopSP
+
+PopBX:
+OutFill 5Bh, .PopBX
+
+PopDI:
+OutFill 5Fh, .PopDI
+
+PopCX:
+OutFill 59h, .PopCX
+
+PopBP:
+OutFill 5Dh, .PopBP
+
+PopDX:
+OutFill 5Ah, .PopDX
+
+PopSI:
+OutFill 5Eh, .PopSI
+
+
+
+MovAh:
+OutFill 0B4h, .Mov
 
 save:
     mov ax, @data
     mov ds, ax
     mov bx, writeHandle
-    mov cx, 40
+    mov cx, 100
     ;mov dx, inBuffer+2
     ;Move inBuffer+5,outBuffer+1
  ;   mov outBuffer, inBuffer+2
@@ -261,8 +452,15 @@ save:
   ;  mov outBuffer+5, inBuffer
     mov ah, 40h
     int 21h
+    jmp startCycle
 
 finish:
+    mov	bx, writeHandle
+	mov	ah, 3eh			
+	int	21h
+    mov	bx, readHandle
+	mov	ah, 3eh			
+	int	21h
     mov ax, 4C00h
     int 21h
 end start
