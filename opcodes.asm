@@ -40,21 +40,6 @@
     .PopBP          db 'pop BP',0
     .PopDX          db 'pop DX',0
     .PopSI          db 'pop SI',0
-    .Jo             db 'jo',0
-    .Jno            db 'jno',0
-    .Jnae           db 'jnae',0
-    .Jae            db 'jae',0
-    .Je             db 'je',0
-    .Jne            db 'jne',0
-    .Jbe            db 'jbe',0
-    .Ja             db 'ja',0
-    .Js             db 'js',0
-    .Jns            db 'jns',0
-    .Jp             db 'jp',0
-    .Jnp            db 'jnp',0
-    .Jl             db 'jl',0
-    .Jge            db 'jge',0
-    .Jle            db 'jle',0
-    .Jg             db 'jg',0
+    .JCombined      db 'jo',0,'jno',0,'jnae',0,'jae',0,'je',0,'jne',0,'jbe',0,'ja',0,'js',0,'jns',0,'jp',0,'jnp',0,'jl',0,'jge',0,'jle',0,'jg',0
     .Jcxz           db 'jcxz',0
     
