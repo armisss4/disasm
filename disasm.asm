@@ -36,16 +36,38 @@
     readFile        db 12 dup (0)
     writeFile       db 12 dup (0)
     inBuffer        db 20 dup (?)
-    outBuffer       db 100 dup (0)
+    outBuffer       db 100 dup (?)
     readHandle      dw ?
     writeHandle     dw ?
     symbol          db ?
+    temp            db 100
+    position        dw 0A2B4h
+    .mov            db 'mov'
 .code
 
 Sje MACRO location
 LOCAL @@exit
     jne @@exit
     jmp location
+@@exit:
+ENDM
+
+OutFill MACRO mcode, acode
+LOCAL @@exit, @@exit1, @@start
+    jne @@exit1
+    jmp @@start
+@@exit1: 
+    jmp @@exit
+@@start:
+    mov ax, @data
+    mov es, ax
+    Pos position, outBuffer
+    ToAscii mcode, outBuffer+7
+    Move 68h, outBuffer+4
+    Move 3Ah, outBuffer+5
+    Move 20h, outBuffer+6 
+    Move acode, outBuffer+24
+    inc position
 @@exit:
 ENDM
 
@@ -57,8 +79,46 @@ LOCAL @@exit
 ENDM
 
 Move MACRO a,b
-    mov ah, [a]
-    mov [b], ah
+    push ax
+    mov ah, a
+    mov b, ah
+    pop ax
+ENDM
+
+Pos MACRO a,b
+    push ax
+    push bx
+    mov ax, a
+    ToAscii ah,b
+    ToAscii al,b+2
+    pop bx
+    pop ax
+ENDM
+
+ToAscii MACRO a,b
+    push ax
+    push bx
+    mov al, a
+    mov ah, 0h
+    mov bl, 10h
+    div bl
+    mov b, al
+    mov b+1, ah
+    ToAscii2 [b]
+    ToAscii2 [b+1]
+    pop bx
+    pop ax
+ENDM
+
+ToAscii2 MACRO var
+LOCAL @@letter, @@exit
+    cmp var, 09h
+    ja @@letter
+    add var, 30h
+    jmp @@exit
+@@letter:
+    add var, 37h
+@@exit:
 ENDM
 
 Get_file MACRO file
@@ -85,6 +145,30 @@ LOCAL @@start,@@end,@@exit,@@loop,@@exit2
         jne @@exit2
     jmp print_info
 @@exit2:
+ENDM
+
+
+Clr1 MACRO buffer
+Move 20h, buffer
+Move 20h, buffer+1
+Move 20h, buffer+2
+Move 20h, buffer+3
+Move 20h, buffer+4
+ENDM
+
+Clr2 MACRO buffer
+Clr1 buffer
+Clr1 buffer+5
+Clr1 buffer+10
+Clr1 buffer+15
+Clr1 buffer+20
+ENDM
+
+Clr MACRO buffer 
+Clr2 buffer
+Clr2 buffer+25
+Clr2 buffer+50
+Clr2 buffer+75
 ENDM
 
 start:
@@ -131,7 +215,9 @@ start:
 	mov	cx, 20         		; kiek baitu nuskaitysim
 	mov	ah, 3fh         	; function 3Fh - read from file
 	int	21h
+    Clr outBuffer
     call check_byte
+    
     
     jmp save
     
@@ -156,7 +242,10 @@ space_check ENDP
 check_byte PROC near
     check_begin:
     cmp byte ptr ds:[inBuffer], 0B4h
-    Sje print_info
+    OutFill 0B4h, .mov
+    
+   ; cmp byte ptr ds:[inBuffer], 0B4h
+    ;OutFill 0B4h, .mov
     ret
 check_byte ENDP
 
@@ -164,9 +253,9 @@ save:
     mov ax, @data
     mov ds, ax
     mov bx, writeHandle
-    mov cx, 20
+    mov cx, 40
     ;mov dx, inBuffer+2
-    Move inBuffer+5,outBuffer+1
+    ;Move inBuffer+5,outBuffer+1
  ;   mov outBuffer, inBuffer+2
     mov dx, offset outBuffer
   ;  mov outBuffer+5, inBuffer
