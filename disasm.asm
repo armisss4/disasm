@@ -31,6 +31,7 @@
 
 .model small
 .stack 100h
+JUMPS
 .data
     info            db 'Arminas Petraitis, 2 kursas, INF4 grupe', 0Dh, 0Ah, 'Programa disasembliuoja failus, pateiktus komandineje eiluteje paleidziant programa', 0Dh, 0Ah, 'Naudojimas: disasm input.com output.asm', 0Dh, 0Ah, '$'
     readFile        db 12 dup (0)
@@ -42,28 +43,16 @@
     symbol          db ?
     temp            dw ?
     position        dw 100h
+    tempPos         dw ?
     
 include opcodes.asm
 
 .code
 
-Sje MACRO location
-LOCAL @@exit
-    jne @@exit
-    jmp location
-@@exit:
-ENDM
-
-Sjc MACRO location
-LOCAL @@exit
-    jnc @@exit
-    jmp location
-@@exit:
-ENDM
-
 OutFill MACRO mcode, acode
     mov ax, @data
     mov es, ax
+    push si
     Pos position, outBuffer
     ToAscii mcode, outBuffer+7
     Move 68h, outBuffer+4
@@ -73,41 +62,7 @@ OutFill MACRO mcode, acode
     Move 0Dh, outBuffer+98
     Move 0Ah, outBuffer+99
     inc position
-    jmp save
-ENDM
-
-OutFillDisplacement MACRO mcode,mcode2, acode
-LOCAL @@exit, @@less, @@less1, @@more
-    mov ax, @data
-    mov es, ax
-    push bx
-    Pos position, outBuffer
-    ToAscii mcode, outBuffer+7
-    ToAscii mcode2, outBuffer+9
-    Move 68h, outBuffer+4
-    Move 3Ah, outBuffer+5
-    Move 20h, outBuffer+6 
-    MoveStrToBuf acode, outBuffer+24
-    Move 0Dh, outBuffer+98
-    Move 0Ah, outBuffer+99
-    inc position
-    inc position
-    mov bl, mcode2
-    cmp bl, 80h
-    jb @@less1
-    jmp @@more
-    @@less1:
-    jmp @@less
-    @@more:
-    
-    Pos position-bx, outBuffer+si+1
-    jmp @@exit
-    @@less:
-    Pos position+bx, outBuffer+si+1    
-    @@exit:
     pop si
-    inc si
-    pop bx
     jmp save
 ENDM
 
@@ -121,7 +76,6 @@ ENDM
 MoveStrToBuf MACRO a,b 
 LOCAL @@start,@@exit
     push ax
-    push si
     xor si, si
     @@start:
     mov ah, a[si]
@@ -211,13 +165,9 @@ LOCAL @@start, @@exit
 ENDM
 
 Compare1 MACRO b, acode
-LOCAL @@exit, @@start,@@exit1
+LOCAL @@exit
 cmp byte ptr ds:[inBuffer+si], b
-jne @@exit1
-jmp @@start
-@@exit1:
-jmp @@exit
-@@start:
+jne @@exit
 OutFill b, acode
 @@exit:
 ENDM
@@ -231,11 +181,11 @@ start:
     
     mov al, byte ptr ds:[si]
     cmp al, 0Dh
-    Sje print_info
+    je print_info
         
     mov ax, word ptr ds:[si]
     cmp ax, 3F2Fh
-    Sje print_info
+    je print_info
 
     Get_file readFile
     Get_file writeFile
@@ -246,7 +196,7 @@ start:
 	mov	ah, 3Dh
 	mov	al, 00h
 	int	21h
-    Sjc print_info
+    jc print_info
 	mov	readHandle, ax   
     mov ax, @data
     mov ds, ax
@@ -254,11 +204,11 @@ start:
 	mov	ah, 3Ch
 	xor	cx, cx
 	int	21h
-    Sjc print_info
+    jc print_info
     mov ah, 3Dh
     mov al, 01h
     int 21h
-    Sjc print_info
+    jc print_info
 	mov	writeHandle, ax
     
     reread:
@@ -271,7 +221,7 @@ start:
     mov si, 0
     dec si
     cmp temp, 00h
-    Sje finish
+    je finish
     startCycle:
     inc si
     cmp si,temp
@@ -365,8 +315,6 @@ CompareJ PROC near
     jbe JCombined2
     jmp JCombinedSkip
     JCombined2:
-    push ax
-    push bx
     mov al, ds:[inBuffer+si]
     xor ah, ah
     mov bl, 10h
@@ -385,10 +333,52 @@ CompareJ PROC near
     inc bx
     jmp JCombined4
     JCombined5:
-    OutFillDisplacement ds:[inBuffer+si],ds:[inBuffer+si+1],[.JCombined+bx] 
-    pop bx
-    pop ax
+
+    mov ax, @data
+    mov es, ax
+    push di
+    mov di, si
+    push si
+    MoveStrToBuf .JCombined+bx, outBuffer+24
+    push bx
+    Pos position, outBuffer
+    ToAscii ds:[inBuffer+di], outBuffer+7
+    ToAscii ds:[inBuffer+di+1], outBuffer+9
+
     
+    mov bx, 00h
+    mov bl, ds:[inBuffer+di+1]
+
+    
+    mov outBuffer+4, 68h
+    mov outBuffer+5, 3Ah
+    mov outBuffer+6, 20h
+    mov outBuffer+98, 0Dh
+    mov outBuffer+99, 0Ah
+    inc position
+    inc position
+    cmp bx, 80h
+    jb @@less
+    mov ax, position
+    mov tempPos, ax
+    @@more:
+    dec tempPos
+    inc bx
+    cmp bx, 00FFh
+    jbe @@more
+    Pos tempPos, outBuffer+si+25
+    jmp @@exit
+    @@less:
+    add bx, position
+    Pos bx, outBuffer+si+25   
+    @@exit:
+
+    pop bx    
+    pop si
+    pop di
+    inc si
+
+    jmp save
     
     JCombinedSkip:
     ret
