@@ -5,4 +5,5 @@
     .JCombined      db 'jo',0,'jno',0,'jnae',0,'jae',0,'je',0,'jne',0,'jbe',0,'ja',0,'js',0,'jns',0,'jp',0,'jnp',0,'jl',0,'jge',0,'jle',0,'jg',0
     .Int            db 'int',0
     .JmpLoopJxcz    db 'jmp',0,'loop',0,'jcxz',0
+    .Jmp            db 'jmp',0
     
