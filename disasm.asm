@@ -252,52 +252,7 @@ space_check PROC near
 space_check ENDP
 
 check_byte PROC near
-    check_begin:
-    Compare1 06h, .PushES
-    Compare1 0Eh, .PushCS
-    Compare1 16h, .PushSS
-    Compare1 1Eh, .PushDS
-    Compare1 07h, .PopES
-    Compare1 0Fh, .PopCS
-    Compare1 17h, .PopSS
-    Compare1 1Fh, .PopDS
-    Compare1 07h, .PopES
-    Compare1 0Fh, .PopCS
-    Compare1 17h, .PopSS
-    Compare1 1Fh, .PopDS
-    Compare1 40h, .IncAX
-    Compare1 44h, .IncSP
-    Compare1 43h, .IncBX
-    Compare1 47h, .IncDI
-    Compare1 41h, .IncCX
-    Compare1 45h, .IncBP
-    Compare1 42h, .IncDX
-    Compare1 46h, .IncSI
-    Compare1 48h, .DecAX
-    Compare1 4Ch, .DecSP
-    Compare1 4Bh, .DecBX
-    Compare1 4Fh, .DecDI
-    Compare1 49h, .DecCX
-    Compare1 4Dh, .DecBP
-    Compare1 4Ah, .DecDX
-    Compare1 4Eh, .DecSI
-    Compare1 50h, .PushAX
-    Compare1 54h, .PushSP
-    Compare1 53h, .PushBX
-    Compare1 57h, .PushDI
-    Compare1 51h, .PushCX
-    Compare1 55h, .PushBP
-    Compare1 52h, .PushDX
-    Compare1 56h, .PushSI
-    Compare1 58h, .PopAX
-    Compare1 5Ch, .PopSP
-    Compare1 5Bh, .PopBX
-    Compare1 5Fh, .PopDI
-    Compare1 59h, .PopCX
-    Compare1 5Dh, .PopBP
-    Compare1 5Ah, .PopDX
-    Compare1 5Eh, .PopSI
-
+    call CompareOneByte
     call CompareJ
 
     
@@ -306,6 +261,42 @@ check_byte PROC near
     OutFill ds:[inBuffer+si], .Unknown
     ret
 check_byte ENDP
+
+CompareOneByte PROC near
+    mov bx, si
+    push si
+    cmp byte ptr ds:[inBuffer+bx], 0
+    je exit
+    mov si, 0
+    a:
+    mov al, ds:[.OneByteBytes+si]
+    cmp byte ptr ds:[inBuffer+bx], al
+    je b
+    cmp al, 0
+    je exit
+    inc si
+    jmp a
+    
+    b: 
+    mov ax, 0
+    mov bx, 0
+    c:
+    cmp ax, si
+    je e
+    cmp ds:[.OneByte+bx], 0
+    je d
+    inc bx
+    jmp c
+    d:
+    inc ax
+    inc bx
+    jmp c
+    e:
+    ;mov bx, ax
+    OutFill ds:[.OneByteBytes+si], ds:[.OneByte+bx]
+    exit:
+    pop si
+CompareOneByte ENDP
 
 CompareJ PROC near
     cmp byte ptr ds:[inBuffer+si], 70h
