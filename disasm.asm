@@ -33,7 +33,7 @@
 .stack 100h
 JUMPS
 .data
-    info            db 'Arminas Petraitis, 2 kursas, INF4 grupe', 0Dh, 0Ah, 'Programa disasembliuoja failus, pateiktus komandineje eiluteje paleidziant programa', 0Dh, 0Ah, 'Naudojimas: disasm input.com output.asm', 0Dh, 0Ah, '$'
+    info            db 'Arminas Petraitis, 2 kursas, INF4 grupe', 0Dh, 0Ah, 'Programa disasembliuoja failus, pateiktus parametrus komandineje eiluteje paleidziant programa', 0Dh, 0Ah, 'Naudojimas: disasm input.com output', 0Dh, 0Ah, '$'
     readFile        db 12 dup (0)
     writeFile       db 12 dup (0)
     inBuffer        db 20 dup (?),0
@@ -257,26 +257,56 @@ check_byte PROC near
     cmp byte ptr ds:[inBuffer+si], 0CDh 
     je cmp_int
     cmp byte ptr ds:[inBuffer+si], 0EBh 
-    je cmp_jmp
+    je cmp_jlj_jmp
     cmp byte ptr ds:[inBuffer+si], 0E2h 
-    je cmp_loop
+    je cmp_jlj_loop
     cmp byte ptr ds:[inBuffer+si], 0E3h 
-    je cmp_jxcz
-    
+    je cmp_jlj_jxcz
+    cmp byte ptr ds:[inBuffer+si], 0E9h 
+    je cmp_jmp
+
     ;Compare1 0B4h, MovAh
     
     OutFill ds:[inBuffer+si], .Unknown
     ret
 check_byte ENDP
 
-cmp_jmp_loop_jxcz:
-    cmp_jmp:
+cmp_jmp: ;1110 1001 pjb pvb                               – JMP žymė (vidinis tiesioginis)
+    mov ax, @data
+    mov es, ax
+    push si
+    Pos position, outBuffer
+    inc position
+    inc position
+    ToAscii ds:[inBuffer], outBuffer+7
+    ToAscii ds:[inBuffer+1], outBuffer+9
+    ToAscii ds:[inBuffer+2], outBuffer+11
+    Move 68h, outBuffer+4
+    Move 3Ah, outBuffer+5
+    Move 20h, outBuffer+6 
+    MoveStrToBuf .Jmp, outBuffer+24
+    mov al, ds:[inBuffer+1]
+    mov ah, ds:[inBuffer+2]
+    add ax, position
+    inc ax
+    Pos ax, outBuffer+si+25
+    Move 0Dh, outBuffer+98
+    Move 0Ah, outBuffer+99
+    inc position
+    pop si
+    inc si
+    inc si
+    jmp save
+    
+
+cmp_jlj:
+    cmp_jlj_jmp:
     mov ax, 0
     jmp cmp_jmp_loop_jxcz_save
-    cmp_loop:
+    cmp_jlj_loop:
     mov ax, 1
     jmp cmp_jmp_loop_jxcz_save
-    cmp_jxcz:
+    cmp_jlj_jxcz:
     mov ax, 2
     cmp_jmp_loop_jxcz_save:
     push si
