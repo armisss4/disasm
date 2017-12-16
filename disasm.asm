@@ -211,21 +211,22 @@ start:
     jc print_info
 	mov	writeHandle, ax
     
+    startCycle:
     reread:
     mov	bx, readHandle
+    mov ax, 4200h
+    mov dx, position
+    sub dx, 100h
+    xor cx, cx
+    int 21h
 	mov	dx, offset inBuffer       ; address of buffer in dx
 	mov	cx, 20         		; kiek baitu nuskaitysim
 	mov	ah, 3fh         	; function 3Fh - read from file
 	int	21h
     mov temp, ax
     mov si, 0
-    dec si
     cmp temp, 00h
     je finish
-    startCycle:
-    inc si
-    cmp si,temp
-    jae reread
     Clr outBuffer
     call check_byte
     
