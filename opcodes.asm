@@ -1,45 +1,7 @@
     .Unknown        db 'NEATPAZINTA',0
     .mov            db 'mov',0
-    .PushES         db 'push ES',0
-    .PushCS         db 'push CS',0
-    .PushSS         db 'push SS',0
-    .PushDS         db 'push DS',0
-    .PopES          db 'pop ES',0
-    .PopCS          db 'pop CS',0
-    .PopSS          db 'pop SS',0
-    .PopDS          db 'pop DS',0
-    .IncAX          db 'inc AX',0
-    .IncSP          db 'inc SP',0
-    .IncBX          db 'inc BX',0
-    .IncDI          db 'inc DI',0
-    .IncCX          db 'inc CX',0
-    .IncBP          db 'inc BP',0
-    .IncDX          db 'inc DX',0
-    .IncSI          db 'inc SI',0
-    .DecAX          db 'dec AX',0
-    .DecSP          db 'dec SP',0
-    .DecBX          db 'dec BX',0
-    .DecDI          db 'dec DI',0
-    .DecCX          db 'dec CX',0
-    .DecBP          db 'dec BP',0
-    .DecDX          db 'dec DX',0
-    .DecSI          db 'dec SI',0
-    .PushAX         db 'push AX',0
-    .PushSP         db 'push SP',0
-    .PushBX         db 'push BX',0
-    .PushDI         db 'push DI',0
-    .PushCX         db 'push CX',0
-    .PushBP         db 'push BP',0
-    .PushDX         db 'push DX',0
-    .PushSI         db 'push SI',0
-    .PopAX          db 'pop AX',0
-    .PopSP          db 'pop SP',0
-    .PopBX          db 'pop BX',0
-    .PopDI          db 'pop DI',0
-    .PopCX          db 'pop CX',0
-    .PopBP          db 'pop BP',0
-    .PopDX          db 'pop DX',0
-    .PopSI          db 'pop SI',0
+    .OneByte        db 'push ES',0,'ES',0,'pop ES',0,'push CS',0,'CS',0,'pop CS',0,'push SS',0,'SS',0,'pop SS',0,'push DS',0,'DS',0,'pop DS',0,'inc AX',0,'inc CX',0,'inc DX',0,'inc BX',0,'inc SP',0,'inc BP',0,'inc SI',0,'inc DI',0,'dec AX',0,'dec CX',0,'dec DX',0,'dec BX',0,'dec SP',0,'dec BP',0,'dec SI',0,'dec DI',0,'push AX',0,'push CX',0,'push DX',0,'push BX',0,'push SP',0,'push BP',0,'push SI',0,'push DI',0,'pop AX',0,'pop CX',0,'pop DX',0,'pop BX',0,'pop SP',0,'pop BP',0,'pop SI',0,'pop DI',0,'ret',0,'retf',0 
+    .OneByteBytes   db 06h,26h,07h,0Eh,2Eh,0Fh,16h,36h,17h,1Eh,3Eh,1Fh,40h,41h,42h,43h,44h,45h,46h,47h,48h,49h,4Ah,4Bh,4Ch,4Dh,4Eh,4Fh,50h,51h,52h,53h,54h,55h,56h,57h,58h,59h,5Ah,5Bh,5Ch,5Dh,5Eh,5Fh,0C3h,0CBh,0
     .JCombined      db 'jo',0,'jno',0,'jnae',0,'jae',0,'je',0,'jne',0,'jbe',0,'ja',0,'js',0,'jns',0,'jp',0,'jnp',0,'jl',0,'jge',0,'jle',0,'jg',0
     .Jcxz           db 'jcxz',0
     
