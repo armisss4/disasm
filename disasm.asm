@@ -254,13 +254,106 @@ space_check ENDP
 check_byte PROC near
     call CompareOneByte
     call CompareJ
-
+    cmp byte ptr ds:[inBuffer+si], 0CDh 
+    je cmp_int
+    cmp byte ptr ds:[inBuffer+si], 0EBh 
+    je cmp_jmp
+    cmp byte ptr ds:[inBuffer+si], 0E2h 
+    je cmp_loop
+    cmp byte ptr ds:[inBuffer+si], 0E3h 
+    je cmp_jxcz
     
     ;Compare1 0B4h, MovAh
     
     OutFill ds:[inBuffer+si], .Unknown
     ret
 check_byte ENDP
+
+cmp_jmp_loop_jxcz:
+    cmp_jmp:
+    mov ax, 0
+    jmp cmp_jmp_loop_jxcz_save
+    cmp_loop:
+    mov ax, 1
+    jmp cmp_jmp_loop_jxcz_save
+    cmp_jxcz:
+    mov ax, 2
+    cmp_jmp_loop_jxcz_save:
+    push si
+    mov si, 0
+    jlja:
+    cmp ax, si
+    je jljc
+    cmp byte ptr ds:[.JmpLoopJxcz+bx], 0
+    je jljb
+    inc bx
+    jmp jlja
+    jljb:
+    inc bx
+    inc si
+    jmp jlja
+    jljc:
+    
+    mov ax, @data
+    mov es, ax
+    mov si, 0
+    MoveStrToBuf .JmpLoopJxcz+bx, outBuffer+24
+    Pos position, outBuffer
+    ToAscii ds:[inBuffer], outBuffer+7
+    ToAscii ds:[inBuffer+1], outBuffer+9
+
+    
+    mov bx, 00h
+    mov bl, ds:[inBuffer+1]
+
+    
+    mov outBuffer+4, 68h
+    mov outBuffer+5, 3Ah
+    mov outBuffer+6, 20h
+    mov outBuffer+98, 0Dh
+    mov outBuffer+99, 0Ah
+    inc position
+    inc position
+    cmp bx, 80h
+    jb jljless
+    mov ax, position
+    mov tempPos, ax
+    jljmore:
+    dec tempPos
+    inc bx
+    cmp bx, 00FFh
+    jbe jljmore
+    Pos tempPos, outBuffer+si+25
+    jmp jljexit
+    jljless:
+    add bx, position
+    Pos bx, outBuffer+si+25   
+    jljexit:
+    
+    pop si
+    inc si
+    jmp save
+    
+cmp_int:    
+    mov ax, @data
+    mov es, ax
+    mov bx, si
+    push si
+    Pos position, outBuffer
+    ToAscii ds:[inBuffer+bx], outBuffer+7
+    ToAscii ds:[inBuffer+bx+1], outBuffer+9
+    Move 68h, outBuffer+4
+    Move 3Ah, outBuffer+5
+    Move 20h, outBuffer+6 
+    MoveStrToBuf .Int, outBuffer+24
+    ToAscii ds:[inBuffer+bx+1], outBuffer+si+25
+    Move 0Dh, outBuffer+98
+    Move 0Ah, outBuffer+99
+    inc position
+    inc position
+    pop si
+    inc si
+    jmp save
 
 CompareOneByte PROC near
     mov bx, si
@@ -292,7 +385,6 @@ CompareOneByte PROC near
     inc bx
     jmp c
     e:
-    ;mov bx, ax
     OutFill ds:[.OneByteBytes+si], ds:[.OneByte+bx]
     exit:
     pop si
@@ -350,20 +442,20 @@ CompareJ PROC near
     inc position
     inc position
     cmp bx, 80h
-    jb @@less
+    jb CJless
     mov ax, position
     mov tempPos, ax
-    @@more:
+    CJmore:
     dec tempPos
     inc bx
     cmp bx, 00FFh
-    jbe @@more
+    jbe CJmore
     Pos tempPos, outBuffer+si+25
-    jmp @@exit
-    @@less:
+    jmp CJexit
+    CJless:
     add bx, position
     Pos bx, outBuffer+si+25   
-    @@exit:
+    CJexit:
 
     pop bx    
     pop si
