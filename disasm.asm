@@ -254,6 +254,7 @@ space_check ENDP
 check_byte PROC near
     call CompareOneByte
     call CompareJ
+    call CompareMovAccumulator
     cmp byte ptr ds:[inBuffer+si], 0CDh 
     je cmp_int
     cmp byte ptr ds:[inBuffer+si], 0EBh 
@@ -264,79 +265,171 @@ check_byte PROC near
     je cmp_jlj_jxcz
     cmp byte ptr ds:[inBuffer+si], 0E9h 
     je cmp_jmp
-
-    ;Compare1 0B4h, MovAh
+    cmp byte ptr ds:[inBuffer+si], 0E8h 
+    je cmp_crr_call
+    cmp byte ptr ds:[inBuffer+si], 0C2h 
+    je cmp_crr_ret
+    cmp byte ptr ds:[inBuffer+si], 0CAh 
+    je cmp_crr_retf
+    
     
     OutFill ds:[inBuffer+si], .Unknown
     ret
 check_byte ENDP
 
-cmp_jmp: ;1110 1001 pjb pvb                               – JMP žymė (vidinis tiesioginis)
-    mov ax, @data
-    mov es, ax
+CompareMovAccumulator PROC near
+    cmp byte ptr ds:[inBuffer+si], 0A0h 
+    jb CMAexit
+    cmp byte ptr ds:[inBuffer+si], 0A3h 
+    ja CMAexit
+    mov al, 0A0h
+    cmp byte ptr ds:[inBuffer+si], al 
+    je b00
+    inc al
+    cmp byte ptr ds:[inBuffer+si], al 
+    je b01
+    inc al
+    cmp byte ptr ds:[inBuffer+si], al 
+    je b10
+    inc al
+    cmp byte ptr ds:[inBuffer+si], al 
+    je b11
+    b00:
     push si
+    MoveStrToBuf .Mov, outBuffer+24
+    mov bx, si
+    add bx, 1
+    MoveStrToBuf .Al, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    add bx, 2
+    MoveStrToBuf .BytePtr, outBuffer+bx+24
+    add bx, si
+    sub bx, 6
+    mov si, bx
+    jmp cmp_save_b_a_position
+    
+    b01:
+    push si
+    MoveStrToBuf .Mov, outBuffer+24
+    mov bx, si
+    add bx, 1
+    MoveStrToBuf .Ax, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    add bx, 2
+    MoveStrToBuf .WordPtr, outBuffer+bx+24
+    add bx, si
+    sub bx, 6
+    mov si, bx
+    jmp cmp_save_b_a_position
+
+    b10:
+    push si
+    MoveStrToBuf .Mov, outBuffer+24
+    mov bx, si
+    add bx, 1
+    MoveStrToBuf .BytePtr, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    add bx, 2
+    MoveStrToBuf .Al, outBuffer+bx+24
+    sub bx, 8
+    mov si, bx
+    jmp cmp_save_b_a_position
+
+    b11:
+    push si
+    MoveStrToBuf .Mov, outBuffer+24
+    mov bx, si
+    add bx, 1
+    MoveStrToBuf .WordPtr, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    add bx, 2
+    MoveStrToBuf .Ax, outBuffer+bx+24
+    sub bx, 8
+    mov si, bx
+    jmp cmp_save_b_a_position
+
+
+    
+    
+    CMAexit:
+    ret
+CompareMovAccumulator ENDP
+
+cmp_crr_call:
+    push si
+    MoveStrToBuf .Call, outBuffer+24
+    jmp cmp_save_b_a_offset
+
+cmp_crr_ret:
+    push si
+    MoveStrToBuf .Ret, outBuffer+24
+    jmp cmp_save_b_a_position
+
+cmp_crr_retf:
+    push si
+    MoveStrToBuf .Retf, outBuffer+24
+    jmp cmp_save_b_a_position    
+    
+cmp_jmp:
+    push si
+    MoveStrToBuf .Jmp, outBuffer+24
+    jmp cmp_save_b_a_offset
+    
+cmp_save_b_a_position:
     Pos position, outBuffer
     inc position
     inc position
     ToAscii ds:[inBuffer], outBuffer+7
     ToAscii ds:[inBuffer+1], outBuffer+9
     ToAscii ds:[inBuffer+2], outBuffer+11
-    Move 68h, outBuffer+4
-    Move 3Ah, outBuffer+5
-    Move 20h, outBuffer+6 
-    MoveStrToBuf .Jmp, outBuffer+24
+    mov outBuffer+4, 68h
+    mov outBuffer+5, 3Ah
+    mov outBuffer+6, 20h
+    mov outBuffer+98, 0Dh
+    mov outBuffer+99, 0Ah
     mov al, ds:[inBuffer+1]
     mov ah, ds:[inBuffer+2]
-    add ax, position
-    inc ax
     Pos ax, outBuffer+si+25
-    Move 0Dh, outBuffer+98
-    Move 0Ah, outBuffer+99
     inc position
     pop si
     inc si
     inc si
     jmp save
     
-
-cmp_jlj:
-    cmp_jlj_jmp:
-    mov ax, 0
-    jmp cmp_jmp_loop_jxcz_save
-    cmp_jlj_loop:
-    mov ax, 1
-    jmp cmp_jmp_loop_jxcz_save
-    cmp_jlj_jxcz:
-    mov ax, 2
-    cmp_jmp_loop_jxcz_save:
-    push si
-    mov si, 0
-    jlja:
-    cmp ax, si
-    je jljc
-    cmp byte ptr ds:[.JmpLoopJxcz+bx], 0
-    je jljb
-    inc bx
-    jmp jlja
-    jljb:
-    inc bx
+cmp_save_b_a_offset:
+    Pos position, outBuffer
+    inc position
+    inc position
+    ToAscii ds:[inBuffer], outBuffer+7
+    ToAscii ds:[inBuffer+1], outBuffer+9
+    ToAscii ds:[inBuffer+2], outBuffer+11
+    mov outBuffer+4, 68h
+    mov outBuffer+5, 3Ah
+    mov outBuffer+6, 20h
+    mov outBuffer+98, 0Dh
+    mov outBuffer+99, 0Ah
+    mov al, ds:[inBuffer+1]
+    mov ah, ds:[inBuffer+2]
+    add ax, position
+    inc ax
+    Pos ax, outBuffer+si+25
+    inc position
+    pop si
     inc si
-    jmp jlja
-    jljc:
+    inc si
+    jmp save
     
-    mov ax, @data
-    mov es, ax
-    mov si, 0
-    MoveStrToBuf .JmpLoopJxcz+bx, outBuffer+24
+cmp_save_a_offset:
     Pos position, outBuffer
     ToAscii ds:[inBuffer], outBuffer+7
     ToAscii ds:[inBuffer+1], outBuffer+9
 
-    
     mov bx, 00h
     mov bl, ds:[inBuffer+1]
-
-    
     mov outBuffer+4, 68h
     mov outBuffer+5, 3Ah
     mov outBuffer+6, 20h
@@ -345,24 +438,39 @@ cmp_jlj:
     inc position
     inc position
     cmp bx, 80h
-    jb jljless
+    jb a_offset_less
     mov ax, position
     mov tempPos, ax
-    jljmore:
+    a_offset_more:
     dec tempPos
     inc bx
     cmp bx, 00FFh
-    jbe jljmore
+    jbe a_offset_more
     Pos tempPos, outBuffer+si+25
-    jmp jljexit
-    jljless:
+    jmp a_offset_exit
+    a_offset_less:
     add bx, position
     Pos bx, outBuffer+si+25   
-    jljexit:
+    a_offset_exit:
     
     pop si
     inc si
     jmp save
+
+cmp_jlj_jmp:
+    push si
+    MoveStrToBuf .Jmp, outBuffer+24
+    jmp cmp_save_a_offset
+
+cmp_jlj_loop:
+    push si
+    MoveStrToBuf .Loop, outBuffer+24
+    jmp cmp_save_a_offset
+    
+cmp_jlj_jxcz:
+    push si
+    MoveStrToBuf .Jxcz, outBuffer+24
+    jmp cmp_save_a_offset
     
 cmp_int:    
     mov ax, @data
@@ -372,13 +480,13 @@ cmp_int:
     Pos position, outBuffer
     ToAscii ds:[inBuffer+bx], outBuffer+7
     ToAscii ds:[inBuffer+bx+1], outBuffer+9
-    Move 68h, outBuffer+4
-    Move 3Ah, outBuffer+5
-    Move 20h, outBuffer+6 
+    mov outBuffer+4, 68h
+    mov outBuffer+5, 3Ah
+    mov outBuffer+6, 20h
+    mov outBuffer+98, 0Dh
+    mov outBuffer+99, 0Ah
     MoveStrToBuf .Int, outBuffer+24
     ToAscii ds:[inBuffer+bx+1], outBuffer+si+25
-    Move 0Dh, outBuffer+98
-    Move 0Ah, outBuffer+99
     inc position
     inc position
     pop si
@@ -389,34 +497,34 @@ CompareOneByte PROC near
     mov bx, si
     push si
     cmp byte ptr ds:[inBuffer+bx], 0
-    je exit
+    je COBexit
     mov si, 0
-    a:
+    COBa:
     mov al, ds:[.OneByteBytes+si]
     cmp byte ptr ds:[inBuffer+bx], al
-    je b
+    je COBb
     cmp al, 0
-    je exit
+    je COBexit
     inc si
-    jmp a
+    jmp COBa
     
-    b: 
+    COBb: 
     mov ax, 0
     mov bx, 0
-    c:
+    COBc:
     cmp ax, si
-    je e
+    je COBe
     cmp ds:[.OneByte+bx], 0
-    je d
+    je COBd
     inc bx
-    jmp c
-    d:
+    jmp COBc
+    COBd:
     inc ax
     inc bx
-    jmp c
-    e:
+    jmp COBc
+    COBe:
     OutFill ds:[.OneByteBytes+si], ds:[.OneByte+bx]
-    exit:
+    COBexit:
     pop si
 CompareOneByte ENDP
 
@@ -459,11 +567,8 @@ CompareJ PROC near
     ToAscii ds:[inBuffer+di], outBuffer+7
     ToAscii ds:[inBuffer+di+1], outBuffer+9
 
-    
     mov bx, 00h
     mov bl, ds:[inBuffer+di+1]
-
-    
     mov outBuffer+4, 68h
     mov outBuffer+5, 3Ah
     mov outBuffer+6, 20h
@@ -497,11 +602,6 @@ CompareJ PROC near
     JCombinedSkip:
     ret
 CompareJ ENDP
-
-
-
-MovAh:
-OutFill 0B4h, .Mov
 
 save:
     mov ax, @data
