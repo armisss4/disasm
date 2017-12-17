@@ -40,10 +40,10 @@ JUMPS
     outBuffer       db 100 dup (?)
     readHandle      dw ?
     writeHandle     dw ?
-    symbol          db ?
     temp            dw ?
     position        dw 100h
     tempPos         dw ?
+    tempBuff        db 10 dup (?)
     
 include opcodes.asm
 
@@ -269,6 +269,7 @@ check_byte PROC near
     call CompareJ
     call CompareMovAccumulator
     call CompareAddSubCmpAccumulator
+    call CompareMovImmediate
     cmp byte ptr ds:[inBuffer+si], 0CDh 
     je cmp_int
     cmp byte ptr ds:[inBuffer+si], 0EBh 
@@ -285,11 +286,119 @@ check_byte PROC near
     je cmp_crr_ret
     cmp byte ptr ds:[inBuffer+si], 0CAh 
     je cmp_crr_retf
+    cmp byte ptr ds:[inBuffer+si], 0EAh 
+    je cmp_jmp_outside_direct
+    cmp byte ptr ds:[inBuffer+si], 09Ah 
+    je cmp_call_outside_direct
     
     
     OutFill ds:[inBuffer+si], .Unknown
     ret
 check_byte ENDP
+
+cmp_jmp_outside_direct:
+    push si
+    MoveStrToBuf .Jmp, outBuffer+24
+    mov outBuffer+si+29, 3Ah
+    jmp cmp_save_outside_direct
+    
+cmp_call_outside_direct:    
+    push si
+    MoveStrToBuf .Call, outBuffer+24
+    mov outBuffer+si+25, 3Ah
+    jmp cmp_save_outside_direct
+
+    
+cmp_save_outside_direct:
+    Pos position, outBuffer
+    inc position
+    inc position
+    inc position
+    inc position
+    ToAscii ds:[inBuffer], outBuffer+7
+    ToAscii ds:[inBuffer+1], outBuffer+9
+    ToAscii ds:[inBuffer+2], outBuffer+11
+    ToAscii ds:[inBuffer+3], outBuffer+13
+    ToAscii ds:[inBuffer+4], outBuffer+15
+
+    mov outBuffer+4, 68h
+    mov outBuffer+5, 3Ah
+    mov outBuffer+6, 20h
+    mov outBuffer+98, 0Dh
+    mov outBuffer+99, 0Ah
+    mov al, ds:[inBuffer+1]
+    mov ah, ds:[inBuffer+2]
+    Pos ax, outBuffer+si+30
+    mov al, ds:[inBuffer+3]
+    mov ah, ds:[inBuffer+4]
+    Pos ax, outBuffer+si+25
+
+    inc position
+    pop si
+    inc si
+    inc si
+    inc si
+    inc si
+    jmp save
+    
+
+CompareMovImmediate PROC near
+    mov al, ds:[inBuffer+si]
+    xor ah, ah
+    mov bl, 10h
+    div bl
+    mov bl, ah
+    mov ah, al
+    mov al, bl
+    cmp ah, 0Bh
+    jne CMIexit
+    cmp al, 08h
+    jae CMIw1_0
+    
+    mov bx, 00h
+    mov ah, 00h
+    CMIw0:
+    cmp al, ah
+    je CMIw0_save
+    cmp byte ptr ds:[.w0+bx], 00h
+    je CMIw0_1
+    inc bx
+    jmp CMIw0
+    CMIw0_1:
+    inc bx
+    inc ah
+    jmp CMIw0
+    
+    CMIw1_0:
+    mov bx, 00h
+    mov ah, 00h
+    sub al, 08h
+    CMIw1:
+    cmp al, ah
+    je CMIw1_save
+    cmp byte ptr ds:[.w1+bx], 00h
+    je CMIw1_1
+    inc bx
+    jmp CMIw1
+    CMIw1_1:
+    inc bx
+    inc ah
+    jmp CMIw1
+    
+    CMIw0_save:
+    MoveStrToBuf .w0+bx, tempBuff
+    mov tempBuff+si+1, 0
+    CASCA .Mov, tempBuff, cmp_save_a_position
+
+    CMIw1_save:
+    MoveStrToBuf .w1+bx, tempBuff
+    mov tempBuff+si+1, 0
+    CASCA .Mov, tempBuff, cmp_save_b_a_position
+
+    
+    CMIexit:
+    ret
+CompareMovImmediate ENDP
 
 CompareAddSubCmpAccumulator PROC near
     cmp byte ptr ds:[inBuffer+si], 04h 
@@ -308,7 +417,9 @@ CompareAddSubCmpAccumulator PROC near
     je CASCA5
     cmp byte ptr ds:[inBuffer+si], 3Dh 
     je CASCA6
-
+    
+    jmp CASCAexit ;GRRRRRRR.....
+    
     CASCA1:
     CASCA .Add, .Al, cmp_save_a_position
     
@@ -406,9 +517,6 @@ CompareMovAccumulator PROC near
     mov si, bx
     jmp cmp_save_b_a_position
 
-
-    
-    
     CMAexit:
     ret
 CompareMovAccumulator ENDP
