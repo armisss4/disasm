@@ -163,12 +163,12 @@ LOCAL @@start,@@end,@@exit,@@loop,@@exit2
 @@exit2:
 ENDM
 
-Clr MACRO buffer 
+Clr MACRO buffer, bSize
 LOCAL @@start, @@exit
     push Si
     xor Si, Si
     @@start:
-    cmp si,100
+    cmp si, bSize
     je @@exit
     mov buffer[si],20h
     inc si
@@ -240,7 +240,8 @@ start:
     mov si, 0
     cmp temp, 00h
     je finish
-    Clr outBuffer
+    Clr outBuffer, 100
+    Clr tempBuff, 10
     call check_byte
     
     
@@ -387,12 +388,12 @@ CompareMovImmediate PROC near
     
     CMIw0_save:
     MoveStrToBuf .w0+bx, tempBuff
-    mov tempBuff+si+1, 0
+    mov tempBuff+si, 0
     CASCA .Mov, tempBuff, cmp_save_a_position
 
     CMIw1_save:
     MoveStrToBuf .w1+bx, tempBuff
-    mov tempBuff+si+1, 0
+    mov tempBuff+si, 0
     CASCA .Mov, tempBuff, cmp_save_b_a_position
 
     
