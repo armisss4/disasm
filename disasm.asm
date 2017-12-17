@@ -66,6 +66,19 @@ OutFill MACRO mcode, acode
     jmp save
 ENDM
 
+CASCA MACRO acode, acode2, jmppos 
+    push si
+    MoveStrToBuf acode, outBuffer+24
+    mov bx, si 
+    inc bx
+    MoveStrToBuf acode2, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    inc bx
+    mov si, bx
+    jmp jmppos
+ENDM
+
 Move MACRO a,b
     push ax
     mov ah, a
@@ -297,76 +310,22 @@ CompareAddSubCmpAccumulator PROC near
     je CASCA6
 
     CASCA1:
-    push si
-    MoveStrToBuf .Add, outBuffer+24
-    mov bx, si 
-    inc bx
-    MoveStrToBuf .Al, outBuffer+bx+24
-    add bx, si 
-    mov outBuffer+bx+24, ','
-    inc bx
-    mov si, bx
-    jmp cmp_save_a_position
-
-    CASCA3:
-    push si
-    MoveStrToBuf .Sub, outBuffer+24
-    mov bx, si 
-    inc bx
-    MoveStrToBuf .Al, outBuffer+bx+24
-    add bx, si 
-    mov outBuffer+bx+24, ','
-    inc bx
-    mov si, bx
-    jmp cmp_save_a_position
-    
-    CASCA5:
-    push si
-    MoveStrToBuf .Cmp, outBuffer+24
-    mov bx, si 
-    inc bx
-    MoveStrToBuf .Al, outBuffer+bx+24
-    add bx, si 
-    mov outBuffer+bx+24, ','
-    inc bx
-    mov si, bx
-    jmp cmp_save_a_position
+    CASCA .Add, .Al, cmp_save_a_position
     
     CASCA2:
-    push si
-    MoveStrToBuf .Add, outBuffer+24
-    mov bx, si 
-    inc bx
-    MoveStrToBuf .Ax, outBuffer+bx+24
-    add bx, si 
-    mov outBuffer+bx+24, ','
-    inc bx
-    mov si, bx
-    jmp cmp_save_b_a_position
+    CASCA .Add, .Ax, cmp_save_b_a_position
+
+    CASCA3:
+    CASCA .Sub, .Al, cmp_save_a_position
     
     CASCA4:
-    push si
-    MoveStrToBuf .Sub, outBuffer+24
-    mov bx, si 
-    inc bx
-    MoveStrToBuf .Ax, outBuffer+bx+24
-    add bx, si 
-    mov outBuffer+bx+24, ','
-    inc bx
-    mov si, bx
-    jmp cmp_save_b_a_position
+    CASCA .Sub, .Ax, cmp_save_b_a_position
+    
+    CASCA5:
+    CASCA .Cmp, .Al, cmp_save_a_position
     
     CASCA6:
-    push si
-    MoveStrToBuf .Cmp, outBuffer+24
-    mov bx, si 
-    inc bx
-    MoveStrToBuf .Ax, outBuffer+bx+24
-    add bx, si 
-    mov outBuffer+bx+24, ','
-    inc bx
-    mov si, bx
-    jmp cmp_save_b_a_position
+    CASCA .Cmp, .Ax, cmp_save_b_a_position
     
     CASCAexit:
     ret 
