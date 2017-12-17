@@ -10,6 +10,9 @@
     .Call           db 'call',0
     .Ret            db 'ret',0
     .Retf           db 'retf',0
+    .Add            db 'add',0
+    .Sub            db 'sub',0
+    .Cmp            db 'cmp',0
     .Ax             db 'AX',0
     .Ah             db 'AH',0
     .Al             db 'AL',0    
