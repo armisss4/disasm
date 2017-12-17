@@ -255,6 +255,7 @@ check_byte PROC near
     call CompareOneByte
     call CompareJ
     call CompareMovAccumulator
+    call CompareAddSubCmpAccumulator
     cmp byte ptr ds:[inBuffer+si], 0CDh 
     je cmp_int
     cmp byte ptr ds:[inBuffer+si], 0EBh 
@@ -276,6 +277,100 @@ check_byte PROC near
     OutFill ds:[inBuffer+si], .Unknown
     ret
 check_byte ENDP
+
+CompareAddSubCmpAccumulator PROC near
+    cmp byte ptr ds:[inBuffer+si], 04h 
+    jb CASCAexit
+    cmp byte ptr ds:[inBuffer+si], 3Dh 
+    ja CASCAexit
+    cmp byte ptr ds:[inBuffer+si], 04h 
+    je CASCA1
+    cmp byte ptr ds:[inBuffer+si], 04h 
+    je CASCA2
+    cmp byte ptr ds:[inBuffer+si], 2Ch 
+    je CASCA3
+    cmp byte ptr ds:[inBuffer+si], 2Dh 
+    je CASCA4
+    cmp byte ptr ds:[inBuffer+si], 3Ch 
+    je CASCA5
+    cmp byte ptr ds:[inBuffer+si], 3Dh 
+    je CASCA6
+
+    CASCA1:
+    push si
+    MoveStrToBuf .Add, outBuffer+24
+    mov bx, si 
+    inc bx
+    MoveStrToBuf .Al, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    inc bx
+    mov si, bx
+    jmp cmp_save_a_position
+
+    CASCA3:
+    push si
+    MoveStrToBuf .Sub, outBuffer+24
+    mov bx, si 
+    inc bx
+    MoveStrToBuf .Al, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    inc bx
+    mov si, bx
+    jmp cmp_save_a_position
+    
+    CASCA5:
+    push si
+    MoveStrToBuf .Cmp, outBuffer+24
+    mov bx, si 
+    inc bx
+    MoveStrToBuf .Al, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    inc bx
+    mov si, bx
+    jmp cmp_save_a_position
+    
+    CASCA2:
+    push si
+    MoveStrToBuf .Add, outBuffer+24
+    mov bx, si 
+    inc bx
+    MoveStrToBuf .Ax, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    inc bx
+    mov si, bx
+    jmp cmp_save_b_a_position
+    
+    CASCA4:
+    push si
+    MoveStrToBuf .Sub, outBuffer+24
+    mov bx, si 
+    inc bx
+    MoveStrToBuf .Ax, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    inc bx
+    mov si, bx
+    jmp cmp_save_b_a_position
+    
+    CASCA6:
+    push si
+    MoveStrToBuf .Cmp, outBuffer+24
+    mov bx, si 
+    inc bx
+    MoveStrToBuf .Ax, outBuffer+bx+24
+    add bx, si 
+    mov outBuffer+bx+24, ','
+    inc bx
+    mov si, bx
+    jmp cmp_save_b_a_position
+    
+    CASCAexit:
+    ret 
+CompareAddSubCmpAccumulator ENDP
 
 CompareMovAccumulator PROC near
     cmp byte ptr ds:[inBuffer+si], 0A0h 
@@ -395,6 +490,23 @@ cmp_save_b_a_position:
     mov ah, ds:[inBuffer+2]
     Pos ax, outBuffer+si+25
     inc position
+    pop si
+    inc si
+    inc si
+    jmp save
+
+cmp_save_a_position:
+    Pos position, outBuffer
+    inc position
+    inc position
+    ToAscii ds:[inBuffer], outBuffer+7
+    ToAscii ds:[inBuffer+1], outBuffer+9
+    mov outBuffer+4, 68h
+    mov outBuffer+5, 3Ah
+    mov outBuffer+6, 20h
+    mov outBuffer+98, 0Dh
+    mov outBuffer+99, 0Ah
+    ToAscii ds:[inBuffer+1], outBuffer+si+25
     pop si
     inc si
     inc si
