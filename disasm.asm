@@ -44,7 +44,9 @@ JUMPS
     position        dw 100h
     tempPos         dw ?
     tempBuff        db 10 dup (?)
-    
+    tempBuff1       db 30 dup (?)
+    tempBuff2       db 30 dup (?)
+    storage         db 7 dup (?) ;1baitas 2baitas 2baito2bitas 2baito1bitas mod reg r/m
 include opcodes.asm
 
 .code
@@ -242,6 +244,8 @@ start:
     je finish
     Clr outBuffer, 100
     Clr tempBuff, 10
+    Clr tempBuff1, 30
+    Clr tempBuff2, 30
     call check_byte
     
     
@@ -278,7 +282,7 @@ check_byte PROC near
     cmp byte ptr ds:[inBuffer+si], 0E2h 
     je cmp_jlj_loop
     cmp byte ptr ds:[inBuffer+si], 0E3h 
-    je cmp_jlj_jxcz
+    je cmp_jlj_jcxz
     cmp byte ptr ds:[inBuffer+si], 0E9h 
     je cmp_jmp
     cmp byte ptr ds:[inBuffer+si], 0E8h 
@@ -291,11 +295,240 @@ check_byte PROC near
     je cmp_jmp_outside_direct
     cmp byte ptr ds:[inBuffer+si], 09Ah 
     je cmp_call_outside_direct
+    call cmp_mod_rm
     
     
     OutFill ds:[inBuffer+si], .Unknown
     ret
 check_byte ENDP
+
+cmp_mod_rm PROC near
+    push si
+    
+    mov al, inBuffer+0
+    shr al, 4
+    mov storage+0, al       ;storage+0 1baitas
+    mov al, inBuffer+0
+    and al, 0Fh
+    mov storage+1, al       ;storage+1 2baitas
+    shr al, 1
+    mov storage+2, al       ;storage+2 2baito 2bitas
+    mov al, storage+1
+    and al, 01h
+    mov storage+3, al       ;storage+3 2baito 1bitas
+    mov al, inBuffer+1
+    shr al, 06h
+    mov storage+4, al       ;storage+4 mod
+    mov al, inBuffer+1
+    and al, 38h
+    shr al, 03h
+    mov storage+5, al       ;storage+5 reg
+    mov al, inBuffer+1
+    and al, 07h
+    mov storage+6, al       ;storage+6 r/m
+    
+    cmp byte ptr ds:[storage+0], 00h ;jei ne [0 2 3 8 C F] tai skip
+    je x0
+    cmp byte ptr ds:[storage+0], 02h 
+    je x2
+    cmp byte ptr ds:[storage+0], 03h 
+    je x3
+    cmp byte ptr ds:[storage+0], 08h 
+    je x8
+    cmp byte ptr ds:[storage+0], 0Ch 
+    je xC
+    cmp byte ptr ds:[storage+0], 0Fh 
+    je xF
+    jmp xExit
+    
+    x2:
+        mov al, storage+1
+        and al, 0Ch
+        cmp al, 08h
+        jne xExit
+        mov tempPos, 00h
+        MoveStrToBuf .Sub, outBuffer+24
+        mov tempPos, si
+        jmp x0_template
+    
+    x0:
+        mov al, storage+1
+        and al, 0Ch
+        cmp al, 00h
+        jne xExit
+        mov tempPos, 00h
+        MoveStrToBuf .Add, outBuffer+24
+        mov tempPos, si
+        
+        x0_template:
+        Pos position, outBuffer
+        ToAscii ds:[inBuffer], outBuffer+7
+        ToAscii ds:[inBuffer+1], outBuffer+9
+        inc position
+        inc position
+
+        mov outBuffer+4, 68h
+        mov outBuffer+5, 3Ah
+        mov outBuffer+6, 20h
+        mov outBuffer+98, 0Dh
+        mov outBuffer+99, 0Ah
+        mov bx, 00h
+        mov ah, 00h
+
+        x0_0:
+        cmp byte ptr ds:[storage+5], ah
+        je x0_0_2
+        cmp byte ptr ds:[.w0+bx], 00h
+        je x0_0_1
+        inc bx
+        jmp x0_0
+        x0_0_1:
+        inc bx
+        inc ah
+        jmp x0_0
+        x0_0_2:
+        
+        cmp byte ptr ds:[storage+3], 01h ;jei 1 word
+        je x0_1
+        
+        MoveStrToBuf .w0+bx, tempBuff1
+        mov tempBuff1+si, 0
+        MoveStrToBuf .BytePtr, tempBuff2
+        ;mov tempBuff2+si, 0
+        mov bx, 00h
+        mov ah, 00h
+
+        jmp x0_a
+        
+        x0_1:
+        MoveStrToBuf .w1+bx, tempBuff1
+        mov tempBuff1+si, 0
+        MoveStrToBuf .WordPtr, tempBuff2
+        ;mov tempBuff2+si, 0
+        mov bx, 00h
+        mov ah, 00h
+        
+        x0_a:
+        cmp byte ptr ds:[storage+6], ah
+        je x0_a_2
+        cmp byte ptr ds:[.rm+bx], 00h
+        je x0_a_1
+        inc bx
+        jmp x0_a
+        x0_a_1:
+        inc bx
+        inc ah
+        jmp x0_a
+        x0_a_2:
+        MoveStrToBuf .rm+bx, tempBuff2+10
+        ;mov tempBuff2+si+11, 0
+
+        
+        cmp byte ptr ds:[storage+4], 00h ;be poslinkio
+        je x0_b
+        cmp byte ptr ds:[storage+4], 01h ;1 bito poslinkis
+        je x0_c
+        cmp byte ptr ds:[storage+4], 02h ;2 bitu poslinkis
+        je x0_d
+    
+        mov bx, 00h
+        mov ah, 00h
+        x0_0_a:
+        cmp byte ptr ds:[storage+6], ah
+        je x0_0_2_a
+        cmp byte ptr ds:[.w0+bx], 00h
+        je x0_0_1_a
+        inc bx
+        jmp x0_0_a
+        x0_0_1_a:
+        inc bx
+        inc ah
+        jmp x0_0_a
+        x0_0_2_a:
+        
+        cmp byte ptr ds:[storage+3], 01h ;jei 1 word
+        je x0_1_a
+        
+        MoveStrToBuf .w0+bx, tempBuff2
+        mov tempBuff2+si, 0
+        pop si
+        add si, 2
+        push si
+        jmp x0_save
+        
+        x0_1_a:
+        MoveStrToBuf .w1+bx, tempBuff2
+        mov tempBuff2+si, 0
+        pop si
+        add si, 2
+        push si
+        jmp x0_save
+        
+        x0_b:
+        mov tempBuff2+10+si, ']'
+        mov tempBuff2+11+si, 00h
+        pop si
+        add si, 2
+        push si
+        jmp x0_save
+        
+        x0_c:
+        toascii ds:[inBuffer+2], tempBuff2+11+si
+        ToAscii ds:[inBuffer+2], outBuffer+11
+        mov tempBuff2+10+si, '+'
+        mov tempBuff2+13+si, ']'
+        mov tempBuff2+14+si, 00h
+        inc position
+        pop si
+        add si, 3
+        push si        
+        jmp x0_save
+        
+        x0_d:
+        toascii ds:[inBuffer+3], tempBuff2+11+si
+        toascii ds:[inBuffer+2], tempBuff2+13+si
+        ToAscii ds:[inBuffer+2], outBuffer+11
+        ToAscii ds:[inBuffer+3], outBuffer+13
+        pop si
+        add si, 4
+        push si
+        mov tempBuff2+11+si, '+'
+        mov tempBuff2+16+si, ']'
+        mov tempBuff2+17+si, 00h
+        inc position
+        inc position
+        jmp x0_save
+        
+        x0_save:
+        cmp byte ptr ds:[storage+2], 01h
+        je x0_save_dir1
+        mov bx, tempPos
+        MoveStrToBuf tempBuff2, outBuffer+25+bx
+        add bx, si
+        mov outBuffer+25+bx, ','
+        MoveStrToBuf tempBuff1, outBuffer+27+bx
+        jmp x0_save_exit
+        
+        x0_save_dir1:
+        mov bx, tempPos
+        MoveStrToBuf tempBuff1, outBuffer+25+bx
+        add bx, si
+        mov outBuffer+25+bx, ','
+        MoveStrToBuf tempBuff2, outBuffer+27+bx
+
+        x0_save_exit:
+        pop si
+        jmp save
+        
+    x3:
+    x8:
+    xC:
+    xF:
+    
+    xExit:
+    pop si
+    ret
+cmp_mod_rm ENDP
 
 cmp_jmp_outside_direct:
     push si
@@ -647,9 +880,9 @@ cmp_jlj_loop:
     MoveStrToBuf .Loop, outBuffer+24
     jmp cmp_save_a_offset
     
-cmp_jlj_jxcz:
+cmp_jlj_jcxz:
     push si
-    MoveStrToBuf .Jxcz, outBuffer+24
+    MoveStrToBuf .Jcxz, outBuffer+24
     jmp cmp_save_a_offset
     
 cmp_int:    
