@@ -573,6 +573,29 @@ cmp_mod_rm PROC near
         jmp x0_save
         
         x0_d:
+        cmp byte ptr ds:[inBuffer+3], 80h 
+        jl x0_d_less
+        push bx
+        mov bl, inBuffer+2
+        mov bh, inBuffer+3
+        sub bh, 80h
+        mov ax, 8000h
+        sub ax, bx
+        pop bx
+        Pos ax, tempBuff2+11+si
+        ToAscii ds:[inBuffer+2], outBuffer+11
+        ToAscii ds:[inBuffer+3], outBuffer+13
+        pop si
+        add si, 4
+        push si
+        mov tempBuff2+11+si, '-'
+        mov tempBuff2+16+si, ']'
+        mov tempBuff2+17+si, 00h
+        inc position
+        inc position
+        jmp x0_save
+
+        x0_d_less:
         toascii ds:[inBuffer+3], tempBuff2+11+si
         toascii ds:[inBuffer+2], tempBuff2+13+si
         ToAscii ds:[inBuffer+2], outBuffer+11
