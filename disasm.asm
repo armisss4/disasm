@@ -47,6 +47,7 @@ JUMPS
     tempBuff1       db 30 dup (?)
     tempBuff2       db 30 dup (?)
     storage         db 7 dup (?) ;1baitas 2baitas 2baito2bitas 2baito1bitas mod reg r/m
+    isX8_1          db 0
 include opcodes.asm
 
 .code
@@ -346,7 +347,6 @@ cmp_mod_rm PROC near
         and al, 0Ch
         cmp al, 08h
         jne xExit
-        mov tempPos, 00h
         MoveStrToBuf .Sub, outBuffer+24
         mov tempPos, si
         jmp x0_template
@@ -356,7 +356,6 @@ cmp_mod_rm PROC near
         and al, 0Ch
         cmp al, 08h
         jne xExit
-        mov tempPos, 00h
         MoveStrToBuf .Cmp, outBuffer+24
         mov tempPos, si
         jmp x0_template
@@ -365,14 +364,51 @@ cmp_mod_rm PROC near
         mov al, storage+1
         and al, 0Ch
         cmp al, 08h
-        jne x8_0
-        mov tempPos, 00h
+        je x8_0
+        
+        mov al, storage+1
+        and al, 0Dh
+        cmp al, 0Ch
+        je x8_1
+        
+        jmp xExit
+
+        x8_0:
         MoveStrToBuf .Mov, outBuffer+24
         mov tempPos, si
         jmp x0_template
         
-        x8_0:
+        x8_1:
+        mov storage+3, 01h
+        MoveStrToBuf .Mov, outBuffer+24
+        mov tempPos, si
+        inc isX8_1
+        jmp x0_template
+        
+        x8_1_sr:
+        push bx
+        mov ah, 0
+        mov bx, 0
+        x8_1_sr_0:
+        cmp byte ptr ds:[storage+5], ah
+        je x8_1_sr_2
+        cmp byte ptr ds:[.sr+bx], 00h
+        je x8_1_sr_1
+        inc bx
+        jmp x8_1_sr_0
+        x8_1_sr_1:
+        inc bx
+        inc ah
+        jmp x8_1_sr_0
+        x8_1_sr_2:
+        
+        MoveStrToBuf .sr+bx, tempBuff1
+        mov tempBuff1+si, 0
 
+        pop bx
+        mov isX8_1, 0 
+        jmp x0_save
+        
     x0:
         mov al, storage+1
         and al, 0Ch
@@ -507,6 +543,24 @@ cmp_mod_rm PROC near
         jmp x0_save
         
         x0_c:
+        cmp byte ptr ds:[inBuffer+2], 80h 
+        jl x0_c_less
+        mov al, inBuffer+2
+        sub al, 80h
+        mov ah, 80h
+        sub ah, al
+        toascii ah, tempBuff2+11+si
+        ToAscii ds:[inBuffer+2], outBuffer+11
+        mov tempBuff2+10+si, '-'
+        mov tempBuff2+13+si, ']'
+        mov tempBuff2+14+si, 00h
+        inc position
+        pop si
+        add si, 3
+        push si        
+        jmp x0_save
+        
+        x0_c_less:
         toascii ds:[inBuffer+2], tempBuff2+11+si
         ToAscii ds:[inBuffer+2], outBuffer+11
         mov tempBuff2+10+si, '+'
@@ -534,6 +588,9 @@ cmp_mod_rm PROC near
         jmp x0_save
         
         x0_save:
+        cmp byte ptr ds:[isX8_1], 01h
+        je x8_1_sr
+        
         cmp byte ptr ds:[storage+2], 01h
         je x0_save_dir1
         mov bx, tempPos
