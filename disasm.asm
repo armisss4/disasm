@@ -351,6 +351,28 @@ cmp_mod_rm PROC near
         mov tempPos, si
         jmp x0_template
     
+    x3:
+        mov al, storage+1
+        and al, 0Ch
+        cmp al, 08h
+        jne xExit
+        mov tempPos, 00h
+        MoveStrToBuf .Cmp, outBuffer+24
+        mov tempPos, si
+        jmp x0_template
+        
+    x8:
+        mov al, storage+1
+        and al, 0Ch
+        cmp al, 08h
+        jne x8_0
+        mov tempPos, 00h
+        MoveStrToBuf .Mov, outBuffer+24
+        mov tempPos, si
+        jmp x0_template
+        
+        x8_0:
+
     x0:
         mov al, storage+1
         and al, 0Ch
@@ -394,7 +416,6 @@ cmp_mod_rm PROC near
         MoveStrToBuf .w0+bx, tempBuff1
         mov tempBuff1+si, 0
         MoveStrToBuf .BytePtr, tempBuff2
-        ;mov tempBuff2+si, 0
         mov bx, 00h
         mov ah, 00h
 
@@ -404,7 +425,6 @@ cmp_mod_rm PROC near
         MoveStrToBuf .w1+bx, tempBuff1
         mov tempBuff1+si, 0
         MoveStrToBuf .WordPtr, tempBuff2
-        ;mov tempBuff2+si, 0
         mov bx, 00h
         mov ah, 00h
         
@@ -421,8 +441,6 @@ cmp_mod_rm PROC near
         jmp x0_a
         x0_a_2:
         MoveStrToBuf .rm+bx, tempBuff2+10
-        ;mov tempBuff2+si+11, 0
-
         
         cmp byte ptr ds:[storage+4], 00h ;be poslinkio
         je x0_b
@@ -465,11 +483,27 @@ cmp_mod_rm PROC near
         jmp x0_save
         
         x0_b:
+        cmp byte ptr ds:[storage+6], 06h ; mod 00 rm 110 exception
+        je x0_b_exception
         mov tempBuff2+10+si, ']'
         mov tempBuff2+11+si, 00h
         pop si
         add si, 2
         push si
+        jmp x0_save
+        
+        x0_b_exception:
+        toascii ds:[inBuffer+3], tempBuff2+10
+        toascii ds:[inBuffer+2], tempBuff2+12
+        ToAscii ds:[inBuffer+2], outBuffer+11
+        ToAscii ds:[inBuffer+3], outBuffer+13
+        pop si
+        add si, 4
+        push si
+        mov tempBuff2+14, ']'
+        mov tempBuff2+15, 00h
+        inc position
+        inc position
         jmp x0_save
         
         x0_c:
@@ -520,8 +554,6 @@ cmp_mod_rm PROC near
         pop si
         jmp save
         
-    x3:
-    x8:
     xC:
     xF:
     
