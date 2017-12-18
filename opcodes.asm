@@ -5,7 +5,7 @@
     .JCombined      db ' jo',0,'jno',0,'jnae',0,'jae',0,'je',0,'jne',0,'jbe',0,'ja',0,'js',0,'jns',0,'jp',0,'jnp',0,'jl',0,'jge',0,'jle',0,'jg',0
     .Int            db 'int',0
     .Loop           db 'loop',0
-    .Jxcz           db 'jcxz',0
+    .Jcxz           db 'jcxz',0
     .Jmp            db 'jmp',0
     .Call           db 'call',0
     .Ret            db 'ret',0
@@ -20,4 +20,5 @@
     .WordPtr        db 'word ptr [    ]',0
     .W0             db 'AL',0,'CL',0,'DL',0,'BL',0,'AH',0,'CH',0,'DH',0,'BH',0
     .W1             db 'AX',0,'CX',0,'DX',0,'BX',0,'SP',0,'BP',0,'SI',0,'DI',0
+    .Rm             db 'BX+SI',0,'BX+DI',0,'BP+SI',0,'BP+DI',0,'SI',0,'DI',0,'BP',0,'BX',0
     
