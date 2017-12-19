@@ -48,6 +48,7 @@ JUMPS
     tempBuff2       db 30 dup (?)
     storage         db 7 dup (?) ;1baitas 2baitas 2baito2bitas 2baito1bitas mod reg r/m
     isX8_1          db 0
+    isXF            db 0
 include opcodes.asm
 
 .code
@@ -178,14 +179,6 @@ LOCAL @@start, @@exit
     jmp @@start
     @@exit:
     pop Si
-ENDM
-
-Compare1 MACRO b, acode
-LOCAL @@exit
-cmp byte ptr ds:[inBuffer+si], b
-jne @@exit
-OutFill b, acode
-@@exit:
 ENDM
 
 start:
@@ -342,6 +335,36 @@ cmp_mod_rm PROC near
     je xF
     jmp xExit
     
+    xF:
+        mov al, storage+1
+        and al, 0Eh
+        cmp al, 06h
+        je xF_0
+        jmp xExit
+        
+        xF_0:
+        mov al, storage+5
+        cmp al, 04h
+        je xF_0_0
+
+        cmp al, 06h
+        je xF_0_1
+
+        jmp xExit
+        
+        xF_0_0:
+        MoveStrToBuf .Mul, outBuffer+24
+        mov tempPos, si
+        inc isXF
+        jmp x0_template
+        
+        xF_0_1:
+        MoveStrToBuf .Div, outBuffer+24
+        mov tempPos, si
+        inc isXF
+        jmp x0_template        
+
+    
     x2:
         mov al, storage+1
         and al, 0Ch
@@ -371,8 +394,22 @@ cmp_mod_rm PROC near
         cmp al, 0Ch
         je x8_1
         
+        mov al, storage+1
+        cmp al, 0Fh
+        je x8_2
+        
         jmp xExit
 
+        x8_2:
+        mov al, storage+5
+        cmp al, 00h
+        jne xExit
+        
+        MoveStrToBuf .Pop, outBuffer+24
+        mov tempPos, si
+        inc isXF
+        jmp x0_template
+        
         x8_0:
         MoveStrToBuf .Mov, outBuffer+24
         mov tempPos, si
@@ -408,7 +445,7 @@ cmp_mod_rm PROC near
         pop bx
         mov isX8_1, 0 
         jmp x0_save
-        
+                
     x0:
         mov al, storage+1
         and al, 0Ch
@@ -544,7 +581,7 @@ cmp_mod_rm PROC near
         
         x0_c:
         cmp byte ptr ds:[inBuffer+2], 80h 
-        jl x0_c_less
+        jb x0_c_less
         mov al, inBuffer+2
         sub al, 80h
         mov ah, 80h
@@ -574,7 +611,7 @@ cmp_mod_rm PROC near
         
         x0_d:
         cmp byte ptr ds:[inBuffer+3], 80h 
-        jl x0_d_less
+        jb x0_d_less
         push bx
         mov bl, inBuffer+2
         mov bh, inBuffer+3
@@ -613,6 +650,8 @@ cmp_mod_rm PROC near
         x0_save:
         cmp byte ptr ds:[isX8_1], 01h
         je x8_1_sr
+        cmp byte ptr ds:[isXF], 01h
+        je xF_save
         
         cmp byte ptr ds:[storage+2], 01h
         je x0_save_dir1
@@ -629,13 +668,18 @@ cmp_mod_rm PROC near
         add bx, si
         mov outBuffer+25+bx, ','
         MoveStrToBuf tempBuff2, outBuffer+27+bx
-
+        
         x0_save_exit:
         pop si
         jmp save
         
+        xF_save:
+        mov bx, tempPos
+        mov isXF, 00h
+        MoveStrToBuf tempBuff2, outBuffer+25+bx
+        pop si
+        jmp save
     xC:
-    xF:
     
     xExit:
     pop si
