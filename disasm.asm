@@ -269,6 +269,7 @@ cmp_mod_rm PROC near
     mov al, inBuffer+0
     and al, 0Fh
     mov storage+1, al       ;storage+1 2baitas
+    and al, 02h
     shr al, 1
     mov storage+2, al       ;storage+2 2baito 2bitas
     mov al, storage+1
@@ -436,10 +437,23 @@ cmp_mod_rm PROC near
         mov al, storage+1
         and al, 0Ch
         cmp al, 08h
-        jne xExit
-        MoveStrToBuf .Cmp, outBuffer+24
-        mov tempPos, si
-        jmp x0_template
+        je x3_0
+
+        mov al, storage+1
+        and al, 0Ch
+        cmp al, 00h
+        je x3_1
+        jmp xExit
+        
+        x3_0:
+            MoveStrToBuf .Cmp, outBuffer+24
+            mov tempPos, si
+            jmp x0_template
+
+        x3_1:
+            MoveStrToBuf .Xor, outBuffer+24
+            mov tempPos, si
+            jmp x0_template
         
     x8:
         mov al, storage+1
@@ -837,6 +851,7 @@ cmp_mod_rm PROC near
             jmp save
         
         xF_bojb_save:
+            mov isXF, 00h
             cmp byte ptr ds:[storage+3], 01h ;ar w = 1
             jne xf_bojb_save_1
             cmp byte ptr ds:[storage+2], 01h ;ar s = 1
