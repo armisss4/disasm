@@ -340,7 +340,81 @@ cmp_mod_rm PROC near
         and al, 0Eh
         cmp al, 06h
         je xF_0
+        mov al, storage+1
+        cmp al, 0Fh
+        je xF_1
+        cmp al, 0Eh
+        je xF_2
+
         jmp xExit
+                
+        xF_1:
+        mov al, storage+5
+        cmp al, 06h
+        je xF_1_0
+        cmp al, 00h
+        je xF_1_1
+        cmp al, 01h
+        je xF_1_2
+        cmp al, 02h
+        je xF_1_3
+        cmp al, 03h
+        je xF_1_4
+        cmp al, 04h
+        je xF_1_5
+        cmp al, 05h
+        je xF_1_6
+        jmp xExit
+
+        xF_2:
+        mov al, storage+5
+        cmp al, 00h
+        je xF_1_1
+        cmp al, 01h
+        je xF_1_2
+        jmp xExit
+        
+        xF_1_0:
+        MoveStrToBuf .Push, outBuffer+24
+        mov tempPos, si
+        inc isXF
+        jmp x0_template
+
+        xF_1_1:
+        MoveStrToBuf .Inc, outBuffer+24
+        mov tempPos, si
+        inc isXF
+        jmp x0_template
+
+        xF_1_2:
+        MoveStrToBuf .Dec, outBuffer+24
+        mov tempPos, si
+        inc isXF
+        jmp x0_template
+
+        xF_1_3:
+        MoveStrToBuf .Call, outBuffer+24
+        mov tempPos, si
+        inc isXF
+        jmp x0_template
+        
+        xF_1_4:
+        MoveStrToBuf .Call, outBuffer+24
+        mov tempPos, si
+        mov isXF, 02h
+        jmp x0_template
+
+        xF_1_5:
+        MoveStrToBuf .Jmp, outBuffer+24
+        mov tempPos, si
+        inc isXF
+        jmp x0_template
+
+        xF_1_6:
+        MoveStrToBuf .Jmp, outBuffer+24
+        mov tempPos, si
+        mov isXF, 02h
+        jmp x0_template
         
         xF_0:
         mov al, storage+5
@@ -497,7 +571,17 @@ cmp_mod_rm PROC near
         x0_1:
         MoveStrToBuf .w1+bx, tempBuff1
         mov tempBuff1+si, 0
+        
+        cmp byte ptr ds:[isXF], 02h
+        je x0_1_dword
+
         MoveStrToBuf .WordPtr, tempBuff2
+        mov bx, 00h
+        mov ah, 00h
+        jmp x0_a
+        
+        x0_1_dword:
+        MoveStrToBuf .DWordPtr, tempBuff2
         mov bx, 00h
         mov ah, 00h
         
@@ -513,8 +597,13 @@ cmp_mod_rm PROC near
         inc ah
         jmp x0_a
         x0_a_2:
+        cmp byte ptr ds:[isXF], 02h
+        je x0_a_2_dword
         MoveStrToBuf .rm+bx, tempBuff2+10
-        
+        jmp x0_a_2_next
+        x0_a_2_dword:
+        MoveStrToBuf .rm+bx, tempBuff2+11
+        x0_a_2_next:
         cmp byte ptr ds:[storage+4], 00h ;be poslinkio
         je x0_b
         cmp byte ptr ds:[storage+4], 01h ;1 bito poslinkis
@@ -558,23 +647,41 @@ cmp_mod_rm PROC near
         x0_b:
         cmp byte ptr ds:[storage+6], 06h ; mod 00 rm 110 exception
         je x0_b_exception
+        cmp byte ptr ds:[isXF], 02h
+        je x0_b_dword
         mov tempBuff2+10+si, ']'
         mov tempBuff2+11+si, 00h
+        jmp x0_b_next
+        x0_b_dword:
+        mov tempBuff2+11+si, ']'
+        mov tempBuff2+12+si, 00h
+        x0_b_next:
         pop si
         add si, 2
         push si
         jmp x0_save
         
         x0_b_exception:
+        cmp byte ptr ds:[isXF], 02h
+        je x0_b_exception_dword
         toascii ds:[inBuffer+3], tempBuff2+10
         toascii ds:[inBuffer+2], tempBuff2+12
+        mov tempBuff2+14, ']'
+        mov tempBuff2+15, 00h
+        jmp x0_b_exception_next
+        
+        x0_b_exception_dword:
+        toascii ds:[inBuffer+3], tempBuff2+11
+        toascii ds:[inBuffer+2], tempBuff2+13
+        mov tempBuff2+15, ']'
+        mov tempBuff2+16, 00h
+
+        x0_b_exception_next:
         ToAscii ds:[inBuffer+2], outBuffer+11
         ToAscii ds:[inBuffer+3], outBuffer+13
         pop si
         add si, 4
         push si
-        mov tempBuff2+14, ']'
-        mov tempBuff2+15, 00h
         inc position
         inc position
         jmp x0_save
@@ -586,11 +693,22 @@ cmp_mod_rm PROC near
         sub al, 80h
         mov ah, 80h
         sub ah, al
+        cmp byte ptr ds:[isXF], 02h
+        je x0_c_dword
         toascii ah, tempBuff2+11+si
-        ToAscii ds:[inBuffer+2], outBuffer+11
         mov tempBuff2+10+si, '-'
         mov tempBuff2+13+si, ']'
         mov tempBuff2+14+si, 00h
+        jmp x0_c_next
+        
+        x0_c_dword:
+        toascii ah, tempBuff2+12+si
+        mov tempBuff2+11+si, '-'
+        mov tempBuff2+14+si, ']'
+        mov tempBuff2+15+si, 00h
+        
+        x0_c_next:
+        ToAscii ds:[inBuffer+2], outBuffer+11
         inc position
         pop si
         add si, 3
@@ -598,11 +716,23 @@ cmp_mod_rm PROC near
         jmp x0_save
         
         x0_c_less:
+        cmp byte ptr ds:[isXF], 02h
+        je x0_c_less_dword
+
         toascii ds:[inBuffer+2], tempBuff2+11+si
-        ToAscii ds:[inBuffer+2], outBuffer+11
         mov tempBuff2+10+si, '+'
         mov tempBuff2+13+si, ']'
         mov tempBuff2+14+si, 00h
+        jmp x0_c_less_next
+        
+        x0_c_less_dword:
+        toascii ds:[inBuffer+2], tempBuff2+12+si
+        mov tempBuff2+11+si, '+'
+        mov tempBuff2+14+si, ']'
+        mov tempBuff2+15+si, 00h
+        
+        x0_c_less_next:
+        ToAscii ds:[inBuffer+2], outBuffer+11
         inc position
         pop si
         add si, 3
@@ -619,30 +749,55 @@ cmp_mod_rm PROC near
         mov ax, 8000h
         sub ax, bx
         pop bx
+        cmp byte ptr ds:[isXF], 02h
+        je x0_d_dword
+
         Pos ax, tempBuff2+11+si
+        mov tempBuff2+10+si, '-'
+        mov tempBuff2+15+si, ']'
+        mov tempBuff2+16+si, 00h
+        jmp x0_d_next
+        
+        x0_d_dword:
+        Pos ax, tempBuff2+12+si
+        mov tempBuff2+11+si, '-'
+        mov tempBuff2+16+si, ']'
+        mov tempBuff2+17+si, 00h
+        
+        x0_d_next:
         ToAscii ds:[inBuffer+2], outBuffer+11
         ToAscii ds:[inBuffer+3], outBuffer+13
         pop si
         add si, 4
         push si
-        mov tempBuff2+11+si, '-'
-        mov tempBuff2+16+si, ']'
-        mov tempBuff2+17+si, 00h
         inc position
         inc position
         jmp x0_save
 
         x0_d_less:
+        cmp byte ptr ds:[isXF], 02h
+        je x0_d_less_dword
+
         toascii ds:[inBuffer+3], tempBuff2+11+si
         toascii ds:[inBuffer+2], tempBuff2+13+si
+        mov tempBuff2+10+si, '+'
+        mov tempBuff2+15+si, ']'
+        mov tempBuff2+16+si, 00h
+        jmp x0_d_less_next
+        
+        x0_d_less_dword:
+        toascii ds:[inBuffer+3], tempBuff2+12+si
+        toascii ds:[inBuffer+2], tempBuff2+14+si
+        mov tempBuff2+11+si, '+'
+        mov tempBuff2+16+si, ']'
+        mov tempBuff2+17+si, 00h
+        x0_d_less_next:
+        
         ToAscii ds:[inBuffer+2], outBuffer+11
         ToAscii ds:[inBuffer+3], outBuffer+13
         pop si
         add si, 4
         push si
-        mov tempBuff2+11+si, '+'
-        mov tempBuff2+16+si, ']'
-        mov tempBuff2+17+si, 00h
         inc position
         inc position
         jmp x0_save
@@ -650,8 +805,8 @@ cmp_mod_rm PROC near
         x0_save:
         cmp byte ptr ds:[isX8_1], 01h
         je x8_1_sr
-        cmp byte ptr ds:[isXF], 01h
-        je xF_save
+        cmp byte ptr ds:[isXF], 00h
+        ja xF_save
         
         cmp byte ptr ds:[storage+2], 01h
         je x0_save_dir1
