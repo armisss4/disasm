@@ -13,6 +13,12 @@
     .Add            db 'add',0
     .Sub            db 'sub',0
     .Cmp            db 'cmp',0
+    .Pop            db 'pop',0    
+    .Mul            db 'mul',0    
+    .Div            db 'div',0    
+    .Push           db 'push',0    
+    .Inc            db 'inc',0    
+    .Dec            db 'dec',0    
     .Ax             db 'AX',0
     .Ah             db 'AH',0
     .Al             db 'AL',0    
