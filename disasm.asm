@@ -49,6 +49,7 @@ JUMPS
     storage         db 7 dup (?) ;1baitas 2baitas 2baito2bitas 2baito1bitas mod reg r/m
     isX8_1          db 0
     isXF            db 0
+    offsetSize      dw 0
 include opcodes.asm
 
 .code
@@ -292,7 +293,7 @@ check_byte PROC near
     call cmp_mod_rm
     
     
-    OutFill ds:[inBuffer+si], .Unknown
+    OutFill ds:[inBuffer], .Unknown
     ret
 check_byte ENDP
 
@@ -334,6 +335,26 @@ cmp_mod_rm PROC near
     cmp byte ptr ds:[storage+0], 0Fh 
     je xF
     jmp xExit
+    
+    xC:
+        mov al, storage+1
+        and al, 0Eh
+        cmp al, 06h
+        je xC_0
+        jmp xExit
+        
+        xC_0:
+        mov al, storage+5
+        cmp al, 00h
+        jne xExit
+
+        MoveStrToBuf .Mov, outBuffer+24
+        mov tempPos, si
+        mov isXF, 3
+        mov storage+2, 0
+        jmp x0_template
+        
+        
     
     xF:
         mov al, storage+1
@@ -472,8 +493,43 @@ cmp_mod_rm PROC near
         cmp al, 0Fh
         je x8_2
         
+        and al, 0Ch
+        cmp al, 00h
+        je x8_3
+        
         jmp xExit
 
+        x8_3:
+        mov al, storage+5
+        cmp al, 00h
+        je x8_3_0
+
+        cmp al, 05h
+        je x8_3_1
+
+        cmp al, 07h
+        je x8_3_2
+        
+        jmp xExit
+        
+        x8_3_0:
+        MoveStrToBuf .Add, outBuffer+24
+        mov tempPos, si
+        mov isXF, 3
+        jmp x0_template
+
+        x8_3_1:
+        MoveStrToBuf .Sub, outBuffer+24
+        mov tempPos, si
+        mov isXF, 3
+        jmp x0_template
+
+        x8_3_2:
+        MoveStrToBuf .Cmp, outBuffer+24
+        mov tempPos, si
+        mov isXF, 3
+        jmp x0_template
+        
         x8_2:
         mov al, storage+5
         cmp al, 00h
@@ -530,6 +586,7 @@ cmp_mod_rm PROC near
         mov tempPos, si
         
         x0_template:
+        mov offsetSize, 00h
         Pos position, outBuffer
         ToAscii ds:[inBuffer], outBuffer+7
         ToAscii ds:[inBuffer+1], outBuffer+9
@@ -631,17 +688,11 @@ cmp_mod_rm PROC near
         
         MoveStrToBuf .w0+bx, tempBuff2
         mov tempBuff2+si, 0
-        pop si
-        add si, 2
-        push si
         jmp x0_save
         
         x0_1_a:
         MoveStrToBuf .w1+bx, tempBuff2
         mov tempBuff2+si, 0
-        pop si
-        add si, 2
-        push si
         jmp x0_save
         
         x0_b:
@@ -656,9 +707,6 @@ cmp_mod_rm PROC near
         mov tempBuff2+11+si, ']'
         mov tempBuff2+12+si, 00h
         x0_b_next:
-        pop si
-        add si, 2
-        push si
         jmp x0_save
         
         x0_b_exception:
@@ -679,9 +727,7 @@ cmp_mod_rm PROC near
         x0_b_exception_next:
         ToAscii ds:[inBuffer+2], outBuffer+11
         ToAscii ds:[inBuffer+3], outBuffer+13
-        pop si
-        add si, 4
-        push si
+        mov offsetSize, 2
         inc position
         inc position
         jmp x0_save
@@ -709,10 +755,8 @@ cmp_mod_rm PROC near
         
         x0_c_next:
         ToAscii ds:[inBuffer+2], outBuffer+11
+        mov offsetSize, 1
         inc position
-        pop si
-        add si, 3
-        push si        
         jmp x0_save
         
         x0_c_less:
@@ -733,10 +777,8 @@ cmp_mod_rm PROC near
         
         x0_c_less_next:
         ToAscii ds:[inBuffer+2], outBuffer+11
+        mov offsetSize, 1
         inc position
-        pop si
-        add si, 3
-        push si        
         jmp x0_save
         
         x0_d:
@@ -767,9 +809,7 @@ cmp_mod_rm PROC near
         x0_d_next:
         ToAscii ds:[inBuffer+2], outBuffer+11
         ToAscii ds:[inBuffer+3], outBuffer+13
-        pop si
-        add si, 4
-        push si
+        mov offsetSize, 2
         inc position
         inc position
         jmp x0_save
@@ -795,9 +835,7 @@ cmp_mod_rm PROC near
         
         ToAscii ds:[inBuffer+2], outBuffer+11
         ToAscii ds:[inBuffer+3], outBuffer+13
-        pop si
-        add si, 4
-        push si
+        mov offsetSize, 2
         inc position
         inc position
         jmp x0_save
@@ -829,12 +867,88 @@ cmp_mod_rm PROC near
         jmp save
         
         xF_save:
+        cmp byte ptr ds:[isXF], 03h
+        je xF_bojb_save
         mov bx, tempPos
         mov isXF, 00h
         MoveStrToBuf tempBuff2, outBuffer+25+bx
         pop si
         jmp save
-    xC:
+        
+        
+        
+        
+        
+        
+        
+        xF_bojb_save:
+        cmp byte ptr ds:[storage+3], 01h ;ar w = 1
+        jne xf_bojb_save_1
+        cmp byte ptr ds:[storage+2], 01h ;ar s = 1
+        je xf_bojb_save_2
+        jmp xf_bojb_save_3
+        
+        xf_bojb_save_1: ;w=0, s - nesvarbu (is vieno baito)
+        mov bx, tempPos
+        MoveStrToBuf tempBuff2, outBuffer+25+bx
+        add si, bx
+        mov outBuffer+25+si, ','
+        mov di, offsetSize
+
+        toascii ds:[inBuffer+di+2], outBuffer+27+si
+        
+        mov si, offsetSize
+        add si, offsetSize
+        toascii ds:[inBuffer+di+2], outBuffer+11+si
+        inc position
+        pop si
+        jmp save
+        
+        xf_bojb_save_2: ;w=1, s=1 (reikia praplesti)
+        mov bx, tempPos
+        MoveStrToBuf tempBuff2, outBuffer+25+bx
+        add si, bx
+        mov outBuffer+25+si, ','
+        mov di, offsetSize
+        cmp byte ptr ds:[inBuffer+di+2], 80h
+        jae xf_bojb_save_2_1 
+        toascii ds:[inBuffer+di+2], outBuffer+27+si
+        mov si, offsetSize
+        add si, offsetSize
+        toascii ds:[inBuffer+di+2], outBuffer+11+si
+        inc position
+        pop si
+        jmp save
+
+        xf_bojb_save_2_1:
+        toascii 0ffh, outBuffer+27+si
+        toascii ds:[inBuffer+di+2], outBuffer+29+si
+        mov si, offsetSize
+        add si, offsetSize
+        toascii ds:[inBuffer+di+2], outBuffer+11+si
+        inc position
+        pop si
+        jmp save
+
+        
+        xf_bojb_save_3: ;w=1, s=0 (is dvieju baitu)
+        mov bx, tempPos
+        MoveStrToBuf tempBuff2, outBuffer+25+bx
+        add si, bx
+        mov outBuffer+25+si, ','
+        mov di, offsetSize
+
+        toascii ds:[inBuffer+di+2], outBuffer+29+si
+        toascii ds:[inBuffer+di+3], outBuffer+27+si
+        
+        mov si, offsetSize
+        add si, offsetSize
+        toascii ds:[inBuffer+di+2], outBuffer+11+si
+        toascii ds:[inBuffer+di+3], outBuffer+13+si
+        inc position
+        inc position 
+        pop si
+        jmp save
     
     xExit:
     pop si
