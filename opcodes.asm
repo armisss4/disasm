@@ -24,6 +24,7 @@
     .Al             db 'AL',0    
     .BytePtr        db 'byte ptr [    ]',0
     .WordPtr        db 'word ptr [    ]',0
+    .DWordPtr       db 'dword ptr [    ]',0
     .W0             db 'AL',0,'CL',0,'DL',0,'BL',0,'AH',0,'CH',0,'DH',0,'BH',0
     .W1             db 'AX',0,'CX',0,'DX',0,'BX',0,'SP',0,'BP',0,'SI',0,'DI',0
     .Rm             db 'BX+SI',0,'BX+DI',0,'BP+SI',0,'BP+DI',0,'SI',0,'DI',0,'BP',0,'BX',0
