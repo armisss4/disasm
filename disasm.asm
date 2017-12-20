@@ -19,6 +19,9 @@ JUMPS
     isX8_1          db 0
     isXF            db 0
     offsetSize      dw 0
+    prefix          db 0,0
+    prefixByte      db 0
+    prefixPosition  dw 0
 include opcodes.asm
 
 .code
@@ -229,6 +232,7 @@ space_check PROC near
 space_check ENDP
 
 check_byte PROC near
+    call ComparePrefix
     call CompareOneByte
     call CompareJ
     call CompareMovAccumulator
@@ -259,6 +263,57 @@ check_byte PROC near
     OutFill ds:[inBuffer], .Unknown
     ret
 check_byte ENDP
+
+ComparePrefix PROC near
+    cmp byte ptr ds:[inBuffer+si], 2Eh 
+    je CP_CS
+    cmp byte ptr ds:[inBuffer+si], 36h 
+    je CP_SS
+    cmp byte ptr ds:[inBuffer+si], 3Eh 
+    je CP_DS
+    cmp byte ptr ds:[inBuffer+si], 26h 
+    je CP_ES
+    ComparePrefixExit:
+    ret
+    
+    CP_CS:
+    mov prefix, 'C'
+    mov prefix+1, 'S'
+    mov prefixByte, 2Eh
+    mov ax, position
+    mov prefixPosition, ax
+    inc position
+    jmp startCycle
+
+    CP_SS:
+    mov prefix, 'S'
+    mov prefix+1, 'S'
+    mov prefixByte, 36h
+    mov ax, position
+    mov prefixPosition, ax
+    inc position
+    jmp startCycle
+
+    CP_DS:
+    mov prefix, 'D'
+    mov prefix+1, 'S'
+    mov prefixByte, 3Eh
+    mov ax, position
+    mov prefixPosition, ax
+    inc position
+    jmp startCycle
+
+    CP_ES:
+    mov prefix, 'E'
+    mov prefix+1, 'S'
+    mov prefixByte, 26h
+    mov ax, position
+    mov prefixPosition, ax
+    inc position
+    jmp startCycle
+
+    
+ComparePrefix ENDP
 
 cmp_mod_rm PROC near
     push si
@@ -1409,7 +1464,42 @@ CompareJ PROC near
     ret
 CompareJ ENDP
 
+prefix_save:
+    pos prefixPosition, outBuffer
+    mov bx, 90
+    prefix_save_1:
+        cmp byte ptr ds:[outBuffer+bx],'[' 
+        je prefix_save_2
+        mov al, outBuffer+bx
+        mov outBuffer+bx+3, al
+        dec bx
+        jmp prefix_save_1
+    prefix_save_2:
+        mov al, outBuffer+bx
+        mov outBuffer+bx+3, al
+        mov outBuffer+bx+2, ':'
+        mov al, prefix+1
+        mov outBuffer+bx+1, al
+        mov al, prefix
+        mov outBuffer+bx, al
+        mov bx, 21
+    prefix_save_3:
+        cmp bx, 6 
+        je prefix_save_4
+        mov al, outBuffer+bx
+        mov outBuffer+bx+2, al
+        dec bx
+        jmp prefix_save_3
+    prefix_save_4:
+        ToAscii ds:[prefixByte], outBuffer+7
+        
+    prefix_save_exit:
+        mov prefix, 0
+        mov prefix+1, 0
+        mov prefixByte, 0
 save:
+    cmp byte ptr ds:[prefixByte], 00h
+    ja prefix_save
     mov ax, @data
     mov ds, ax
     mov bx, writeHandle
